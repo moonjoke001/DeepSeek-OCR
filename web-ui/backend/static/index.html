@@ -1,0 +1,450 @@
+<\!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek OCR Web UI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .prompt-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .prompt-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .prompt-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .prompt-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .custom-prompt {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f9f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f0ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e8ff;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .result-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 DeepSeek OCR Web UI</h1>
+            <p>基于 vLLM 的高性能 OCR 识别服务</p>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">1. 选择识别模式</div>
+            <div class="prompt-selector">
+                <button class="prompt-btn active" data-prompt="free">基础 OCR</button>
+                <button class="prompt-btn" data-prompt="markdown">文档转 Markdown</button>
+                <button class="prompt-btn" data-prompt="table">表格识别</button>
+                <button class="prompt-btn" data-prompt="figure">图表解析</button>
+                <button class="prompt-btn" data-prompt="custom">自定义</button>
+            </div>
+            <textarea id="customPrompt" class="custom-prompt" placeholder="输入自定义提示词，例如: <image>\nFree OCR." rows="2"></textarea>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">2. 上传文件</div>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">��</div>
+                <p><strong>点击或拖拽文件到此区域上传</strong></p>
+                <p style="color: #666; margin-top: 10px;">支持 PDF, PNG, JPG, JPEG 格式</p>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept=".pdf,.png,.jpg,.jpeg">
+            <button id="startBtn" class="btn-primary" disabled>开始识别</button>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <div id="progressContainer" class="progress-container">
+                <div class="section-title">3. 识别进度</div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill">0%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" id="resultCard" style="display: none;">
+            <div class="section-title">📄 识别结果</div>
+            <div id="resultContainer" class="result-container"></div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by DeepSeek-OCR + vLLM</p>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        const prompts = {
+            free: '<image>\nFree OCR.',
+            markdown: '<image>\n<|grounding|>Convert the document to markdown.',
+            table: '<image>\n<|grounding|>OCR this image.',
+            figure: '<image>\nParse the figure.'
+        };
+        
+        let selectedFile = null;
+        let currentPromptType = 'free';
+        let ws = null;
+        
+        // 提示词选择
+        document.querySelectorAll('.prompt-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.prompt-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentPromptType = this.dataset.prompt;
+                
+                const customPrompt = document.getElementById('customPrompt');
+                if (currentPromptType === 'custom') {
+                    customPrompt.style.display = 'block';
+                } else {
+                    customPrompt.style.display = 'none';
+                }
+            });
+        });
+        
+        // 文件上传
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const startBtn = document.getElementById('startBtn');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        function handleFileSelect(file) {
+            selectedFile = file;
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <p><strong>${file.name}</strong></p>
+                <p style="color: #666; margin-top: 10px;">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            `;
+            startBtn.disabled = false;
+        }
+        
+        // 开始识别
+        startBtn.addEventListener('click', async () => {
+            if (\!selectedFile) return;
+            
+            startBtn.disabled = true;
+            showStatus('上传文件中...', 'success');
+            
+            // 上传文件
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            try {
+                const uploadRes = await fetch(`${API_BASE}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const uploadData = await uploadRes.json();
+                
+                if (uploadData.status \!== 'success') {
+                    showStatus('上传失败: ' + uploadData.message, 'error');
+                    startBtn.disabled = false;
+                    return;
+                }
+                
+                // 获取提示词
+                let prompt = prompts[currentPromptType];
+                if (currentPromptType === 'custom') {
+                    prompt = document.getElementById('customPrompt').value || prompts.free;
+                }
+                
+                // 启动 OCR
+                const ocrRes = await fetch(`${API_BASE}/api/ocr`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        file_path: uploadData.file_path,
+                        file_type: uploadData.file_type,
+                        prompt: prompt
+                    })
+                });
+                
+                const ocrData = await ocrRes.json();
+                
+                if (ocrData.status === 'running') {
+                    showStatus('OCR 识别中...', 'success');
+                    document.getElementById('progressContainer').style.display = 'block';
+                    connectWebSocket(ocrData.task_id);
+                } else {
+                    showStatus('启动失败: ' + ocrData.message, 'error');
+                    startBtn.disabled = false;
+                }
+                
+            } catch (error) {
+                showStatus('错误: ' + error.message, 'error');
+                startBtn.disabled = false;
+            }
+        });
+        
+        function connectWebSocket(taskId) {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${taskId}`);
+            
+            ws.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.progress \!== undefined) {
+                    updateProgress(data.progress);
+                }
+                
+                if (data.status === 'finished') {
+                    // 获取结果
+                    const resultRes = await fetch(`${API_BASE}/api/result/${taskId}`);
+                    const resultData = await resultRes.json();
+                    
+                    if (resultData.status === 'success') {
+                        showResult(resultData.content);
+                        showStatus('✅ OCR 识别完成\!', 'success');
+                    } else {
+                        showStatus('获取结果失败', 'error');
+                    }
+                    
+                    startBtn.disabled = false;
+                    ws.close();
+                } else if (data.status === 'error') {
+                    showStatus('识别失败: ' + data.message, 'error');
+                    startBtn.disabled = false;
+                    ws.close();
+                }
+            };
+            
+            ws.onerror = () => {
+                showStatus('WebSocket 连接失败', 'error');
+                startBtn.disabled = false;
+            };
+        }
+        
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+            fill.textContent = percent + '%';
+        }
+        
+        function showResult(content) {
+            document.getElementById('resultCard').style.display = 'block';
+            const container = document.getElementById('resultContainer');
+            container.style.display = 'block';
+            container.textContent = content;
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message status-' + type;
+            statusEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

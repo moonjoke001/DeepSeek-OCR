@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek OCR Web UI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .prompt-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .prompt-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .prompt-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .prompt-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .custom-prompt {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .prompt-example-btn {
+            padding: 6px 12px;
+            background: white;
+            color: #667eea;
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .prompt-example-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f9f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f0ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e8ff;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-download {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-reset {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        
+        .btn-reset:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .result-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .model-status-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .model-loading {
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            color: white;
+        }
+        
+        .model-ready {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #155724;
+        }
+        
+        .model-error {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <!-- 模型状态横幅 -->
+    <div id="modelStatusBanner" class="model-status-banner model-loading" style="display: none;">
+        <span id="modelStatusText">🔄 正在检查模型状态...</span>
+    </div>
+    
+    <div class="container" style="margin-top: 0;">
+        <div class="header">
+            <h1>🚀 DeepSeek OCR Web UI</h1>
+            <p>基于 vLLM 的高性能 OCR 识别服务</p>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">1. 选择识别模式</div>
+            <div class="prompt-selector">
+                <button class="prompt-btn active" data-prompt="free">基础 OCR</button>
+                <button class="prompt-btn" data-prompt="markdown">文档转 Markdown</button>
+                <button class="prompt-btn" data-prompt="table">表格识别</button>
+                <button class="prompt-btn" data-prompt="figure">图表解析</button>
+                <button class="prompt-btn" data-prompt="custom">自定义</button>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <textarea id="customPrompt" class="custom-prompt" placeholder="输入自定义提示词，例如: <image>\nFree OCR." rows="3" style="flex: 1; margin-top: 0;"></textarea>
+                <button id="resetCustomBtn" class="btn-reset" style="display: none; height: fit-content; align-self: flex-start;">🔄 清空会话</button>
+            </div>
+            
+            <!-- 提示词示例 -->
+            <div id="promptExamples" style="display: none; margin-top: 15px; padding: 15px; background: #f9f9ff; border-radius: 8px; border: 1px solid #667eea;">
+                <div style="font-weight: 600; margin-bottom: 10px; color: #667eea;">📝 官方提示词示例 (点击使用):</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <button class="prompt-example-btn" data-prompt="<image>\nFree OCR.">基础 OCR</button>
+                    <button class="prompt-example-btn" data-prompt="<image>\n<|grounding|>Convert the document to markdown.">文档转 Markdown</button>
+                    <button class="prompt-example-btn" data-prompt="<image>\n<|grounding|>OCR this image.">图片 OCR (带坐标)</button>
+                    <button class="prompt-example-btn" data-prompt="<image>\nParse the figure.">图表解析</button>
+                    <button class="prompt-example-btn" data-prompt="<image>\nDescribe this image in detail.">详细描述</button>
+                    <button class="prompt-example-btn" data-prompt="<image>\nLocate <|ref|>关键词<|/ref|> in the image.">文本定位</button>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    💡 提示: 将 "关键词" 替换为你要查找的文字
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">2. 上传文件</div>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <p><strong>点击或拖拽文件到此区域上传</strong></p>
+                <p style="color: #666; margin-top: 10px;">支持 PDF, PNG, JPG, JPEG 格式</p>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept=".pdf,.png,.jpg,.jpeg">
+            <button id="startBtn" class="btn-primary" disabled>开始识别</button>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <div id="progressContainer" class="progress-container">
+                <div class="section-title">3. 识别进度</div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill">0%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" id="resultCard" style="display: none;">
+            <div class="section-title">
+                <span id="resultTitle">📄 识别结果</span>
+                <button id="downloadBtn" class="btn-download" style="float: right; display: none;">📥 下载 Markdown</button>
+            </div>
+            <div id="resultContainer" class="result-container"></div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by DeepSeek-OCR + vLLM</p>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        const prompts = {
+            free: '<image>\nFree OCR.',
+            markdown: '<image>\n<|grounding|>Convert the document to markdown.',
+            table: '<image>\n<|grounding|>OCR this image.',
+            figure: '<image>\nParse the figure.',
+            custom: ''
+        };
+        
+        let selectedFile = null;
+        let currentPromptType = 'free';
+        let ws = null;
+        let modelReady = false;
+        let modelCheckInterval = null;
+        
+        // 为每个模式保存历史记录
+        let modeHistory = {
+            free: { file: null, result: null, progress: 0, status: null },
+            markdown: { file: null, result: null, progress: 0, status: null },
+            table: { file: null, result: null, progress: 0, status: null },
+            figure: { file: null, result: null, progress: 0, status: null },
+            custom: { file: null, result: null, progress: 0, status: null }
+        };
+        
+        // 为自定义模式的每个提示词保存独立会话
+        let customPromptSessions = {};
+        let currentCustomPromptKey = null;
+        
+        // 提示词选择
+        document.querySelectorAll('.prompt-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const oldMode = currentPromptType;
+                const newMode = this.dataset.prompt;
+                
+                // 如果点击的是当前模式,不做任何操作
+                if (oldMode === newMode) return;
+                
+                // 保存当前模式的状态
+                saveCurrentModeState(oldMode);
+                
+                // 如果从自定义模式切换出去,保存当前提示词会话
+                if (oldMode === 'custom' && currentCustomPromptKey) {
+                    saveCustomPromptSession(currentCustomPromptKey);
+                }
+                
+                // 切换模式
+                document.querySelectorAll('.prompt-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentPromptType = newMode;
+                
+                const customPrompt = document.getElementById('customPrompt');
+                const promptExamples = document.getElementById('promptExamples');
+                const resetCustomBtn = document.getElementById('resetCustomBtn');
+                if (currentPromptType === 'custom') {
+                    customPrompt.style.display = 'block';
+                    promptExamples.style.display = 'block';
+                    resetCustomBtn.style.display = 'block';
+                } else {
+                    customPrompt.style.display = 'none';
+                    promptExamples.style.display = 'none';
+                    resetCustomBtn.style.display = 'none';
+                }
+                
+                // 恢复新模式的历史状态
+                restoreModeState(newMode);
+            });
+        });
+        
+        // 保存当前模式的状态
+        function saveCurrentModeState(mode) {
+            const historyData = {
+                file: selectedFile,
+                result: document.getElementById('resultContainer').textContent,
+                progress: parseInt(document.getElementById('progressFill').textContent) || 0,
+                status: document.getElementById('statusMessage').textContent,
+                hasResult: document.getElementById('resultCard').style.display !== 'none',
+                hasProgress: document.getElementById('progressContainer').style.display !== 'none',
+                hasStatus: document.getElementById('statusMessage').style.display !== 'none'
+            };
+            
+            // 如果是自定义模式,额外保存提示词
+            if (mode === 'custom') {
+                historyData.customPrompt = document.getElementById('customPrompt').value;
+            }
+            
+            modeHistory[mode] = historyData;
+        }
+        
+        // 恢复模式的历史状态
+        function restoreModeState(mode) {
+            const history = modeHistory[mode];
+            
+            // 关闭当前 WebSocket
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            
+            if (history.file) {
+                // 恢复文件
+                selectedFile = history.file;
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">✅</div>
+                    <p><strong>${history.file.name}</strong></p>
+                    <p style="color: #666; margin-top: 10px;">${(history.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                `;
+                startBtn.disabled = false;
+                
+                // 恢复进度
+                if (history.hasProgress) {
+                    document.getElementById('progressContainer').style.display = 'block';
+                    document.getElementById('progressFill').style.width = history.progress + '%';
+                    document.getElementById('progressFill').textContent = history.progress + '%';
+                } else {
+                    document.getElementById('progressContainer').style.display = 'none';
+                }
+                
+                // 恢复状态消息
+                if (history.hasStatus && history.status) {
+                    const statusEl = document.getElementById('statusMessage');
+                    statusEl.textContent = history.status;
+                    statusEl.style.display = 'block';
+                    // 根据内容判断类型
+                    if (history.status.includes('✅') || history.status.includes('完成')) {
+                        statusEl.className = 'status-message status-success';
+                    } else if (history.status.includes('失败') || history.status.includes('错误')) {
+                        statusEl.className = 'status-message status-error';
+                    }
+                } else {
+                    document.getElementById('statusMessage').style.display = 'none';
+                }
+                
+                // 恢复结果 (使用 showResult 函数以应用格式处理)
+                if (history.hasResult && history.result) {
+                    showResult(history.result);
+                } else {
+                    document.getElementById('resultCard').style.display = 'none';
+                }
+                
+                // 如果是自定义模式,恢复提示词
+                if (mode === 'custom' && history.customPrompt) {
+                    document.getElementById('customPrompt').value = history.customPrompt;
+                }
+            } else {
+                // 没有历史记录,显示初始状态
+                resetUploadState();
+                
+                // 如果是自定义模式,清空提示词
+                if (mode === 'custom') {
+                    document.getElementById('customPrompt').value = '';
+                }
+            }
+        }
+        
+        // 重置上传状态函数 (用于清空历史)
+        function resetUploadState() {
+            // 清空选中的文件
+            selectedFile = null;
+            fileInput.value = '';
+            
+            // 重置上传区域
+            uploadArea.innerHTML = `
+                <div class="upload-icon">📁</div>
+                <p><strong>点击或拖拽文件到此区域上传</strong></p>
+                <p style="color: #666; margin-top: 10px;">支持 PDF, PNG, JPG, JPEG 格式</p>
+            `;
+            
+            // 禁用开始按钮
+            startBtn.disabled = true;
+            
+            // 隐藏进度条
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressFill').textContent = '0%';
+            
+            // 隐藏状态消息
+            document.getElementById('statusMessage').style.display = 'none';
+            
+            // 隐藏结果
+            document.getElementById('resultCard').style.display = 'none';
+            document.getElementById('resultContainer').textContent = '';
+            
+            // 关闭 WebSocket
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        // 提示词示例按钮点击事件
+        document.querySelectorAll('.prompt-example-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const prompt = this.dataset.prompt;
+                const promptKey = prompt; // 使用提示词本身作为键
+                
+                // 如果当前有提示词会话,先保存
+                if (currentCustomPromptKey && currentPromptType === 'custom') {
+                    saveCustomPromptSession(currentCustomPromptKey);
+                }
+                
+                // 切换到新的提示词会话
+                currentCustomPromptKey = promptKey;
+                
+                // 恢复或创建新会话
+                if (customPromptSessions[promptKey]) {
+                    // 恢复已有会话
+                    restoreCustomPromptSession(promptKey);
+                } else {
+                    // 创建新会话
+                    document.getElementById('customPrompt').value = prompt;
+                    resetUploadState();
+                    showStatus('✨ 已创建新会话: ' + this.textContent, 'success');
+                    setTimeout(() => {
+                        document.getElementById('statusMessage').style.display = 'none';
+                    }, 2000);
+                }
+            });
+        });
+        
+        // 保存自定义提示词会话
+        function saveCustomPromptSession(promptKey) {
+            customPromptSessions[promptKey] = {
+                prompt: document.getElementById('customPrompt').value,
+                file: selectedFile,
+                result: document.getElementById('resultContainer').textContent,
+                progress: parseInt(document.getElementById('progressFill').textContent) || 0,
+                status: document.getElementById('statusMessage').textContent,
+                hasResult: document.getElementById('resultCard').style.display !== 'none',
+                hasProgress: document.getElementById('progressContainer').style.display !== 'none',
+                hasStatus: document.getElementById('statusMessage').style.display !== 'none'
+            };
+        }
+        
+        // 恢复自定义提示词会话
+        function restoreCustomPromptSession(promptKey) {
+            const session = customPromptSessions[promptKey];
+            if (!session) return;
+            
+            // 恢复提示词
+            document.getElementById('customPrompt').value = session.prompt;
+            
+            // 恢复文件
+            if (session.file) {
+                selectedFile = session.file;
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">✅</div>
+                    <p><strong>${session.file.name}</strong></p>
+                    <p style="color: #666; margin-top: 10px;">${(session.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                `;
+                startBtn.disabled = false;
+            } else {
+                resetUploadState();
+            }
+            
+            // 恢复进度
+            if (session.hasProgress) {
+                document.getElementById('progressContainer').style.display = 'block';
+                document.getElementById('progressFill').style.width = session.progress + '%';
+                document.getElementById('progressFill').textContent = session.progress + '%';
+            } else {
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+            
+            // 恢复状态
+            if (session.hasStatus && session.status) {
+                const statusEl = document.getElementById('statusMessage');
+                statusEl.textContent = session.status;
+                statusEl.style.display = 'block';
+                if (session.status.includes('✅') || session.status.includes('完成')) {
+                    statusEl.className = 'status-message status-success';
+                } else if (session.status.includes('失败') || session.status.includes('错误')) {
+                    statusEl.className = 'status-message status-error';
+                }
+            } else {
+                document.getElementById('statusMessage').style.display = 'none';
+            }
+            
+            // 恢复结果
+            if (session.hasResult && session.result) {
+                showResult(session.result);
+            } else {
+                document.getElementById('resultCard').style.display = 'none';
+            }
+            
+            showStatus('🔄 已恢复会话: ' + promptKey.split('\n')[1], 'success');
+            setTimeout(() => {
+                document.getElementById('statusMessage').style.display = 'none';
+            }, 2000);
+        }
+        
+        // 清空自定义模式会话按钮
+        document.getElementById('resetCustomBtn').addEventListener('click', function() {
+            if (confirm('确定要清空当前会话吗?\n\n这将清空:\n- 提示词\n- 上传的文件\n- 识别结果\n- 识别进度')) {
+                // 如果有当前提示词会话,删除它
+                if (currentCustomPromptKey) {
+                    delete customPromptSessions[currentCustomPromptKey];
+                    currentCustomPromptKey = null;
+                }
+                
+                // 清空自定义模式的历史记录
+                modeHistory['custom'] = {
+                    file: null,
+                    result: '',
+                    progress: 0,
+                    status: '',
+                    hasResult: false,
+                    hasProgress: false,
+                    hasStatus: false,
+                    customPrompt: ''
+                };
+                
+                // 重置界面
+                document.getElementById('customPrompt').value = '';
+                resetUploadState();
+                
+                // 显示提示
+                showStatus('✅ 当前会话已清空', 'success');
+                setTimeout(() => {
+                    document.getElementById('statusMessage').style.display = 'none';
+                }, 2000);
+            }
+        });
+        
+        // 文件上传
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const startBtn = document.getElementById('startBtn');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        function handleFileSelect(file) {
+            selectedFile = file;
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <p><strong>${file.name}</strong></p>
+                <p style="color: #666; margin-top: 10px;">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            `;
+            startBtn.disabled = false;
+        }
+        
+        // 开始识别
+        startBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            startBtn.disabled = true;
+            showStatus('上传文件中...', 'success');
+            
+            // 上传文件
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            try {
+                const uploadRes = await fetch(`${API_BASE}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const uploadData = await uploadRes.json();
+                
+                if (uploadData.status !== 'success') {
+                    showStatus('上传失败: ' + uploadData.message, 'error');
+                    startBtn.disabled = false;
+                    return;
+                }
+                
+                // 获取提示词
+                let prompt = prompts[currentPromptType];
+                if (currentPromptType === 'custom') {
+                    prompt = document.getElementById('customPrompt').value || prompts.free;
+                }
+                
+                // 启动 OCR
+                const ocrRes = await fetch(`${API_BASE}/api/ocr`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        file_path: uploadData.file_path,
+                        file_type: uploadData.file_type,
+                        prompt: prompt
+                    })
+                });
+                
+                const ocrData = await ocrRes.json();
+                
+                if (ocrData.status === 'running') {
+                    showStatus('OCR 识别中...', 'success');
+                    document.getElementById('progressContainer').style.display = 'block';
+                    connectWebSocket(ocrData.task_id);
+                } else {
+                    showStatus('启动失败: ' + ocrData.message, 'error');
+                    startBtn.disabled = false;
+                }
+                
+            } catch (error) {
+                showStatus('错误: ' + error.message, 'error');
+                startBtn.disabled = false;
+            }
+        });
+        
+        function connectWebSocket(taskId) {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${taskId}`);
+            
+            // 添加轮询作为备选方案
+            let pollInterval = setInterval(async () => {
+                try {
+                    const resultRes = await fetch(`${API_BASE}/api/result/${taskId}`);
+                    const resultData = await resultRes.json();
+                    
+                    if (resultData.status === 'success') {
+                        clearInterval(pollInterval);
+                        showResult(resultData.content);
+                        showStatus('✅ OCR 识别完成!', 'success');
+                        updateProgress(100);
+                        startBtn.disabled = false;
+                        if (ws) ws.close();
+                    } else if (resultData.status === 'error') {
+                        clearInterval(pollInterval);
+                        showStatus('识别失败: ' + resultData.message, 'error');
+                        startBtn.disabled = false;
+                        if (ws) ws.close();
+                    }
+                } catch (e) {
+                    console.log('轮询错误:', e);
+                }
+            }, 2000); // 每2秒轮询一次
+            
+            ws.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.progress !== undefined) {
+                    updateProgress(data.progress);
+                }
+                
+                if (data.status === 'finished') {
+                    clearInterval(pollInterval);
+                    // 获取结果
+                    const resultRes = await fetch(`${API_BASE}/api/result/${taskId}`);
+                    const resultData = await resultRes.json();
+                    
+                    if (resultData.status === 'success') {
+                        showResult(resultData.content);
+                        showStatus('✅ OCR 识别完成!', 'success');
+                    } else {
+                        showStatus('获取结果失败', 'error');
+                    }
+                    
+                    startBtn.disabled = false;
+                    ws.close();
+                } else if (data.status === 'error') {
+                    clearInterval(pollInterval);
+                    showStatus('识别失败: ' + data.message, 'error');
+                    startBtn.disabled = false;
+                    ws.close();
+                }
+            };
+            
+            ws.onerror = () => {
+                console.log('WebSocket 错误,使用轮询机制');
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket 关闭');
+            };
+        }
+        
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+            fill.textContent = percent + '%';
+        }
+        
+        function showResult(content) {
+            document.getElementById('resultCard').style.display = 'block';
+            const container = document.getElementById('resultContainer');
+            container.style.display = 'block';
+            
+            // 根据模式处理输出格式
+            const resultTitle = document.getElementById('resultTitle');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            if (currentPromptType === 'markdown') {
+                // Markdown 模式: 保留格式,显示下载按钮
+                resultTitle.textContent = '📄 识别结果 (Markdown 格式)';
+                container.textContent = content;
+                downloadBtn.style.display = 'inline-block';
+            } else if (currentPromptType === 'free') {
+                // 基础 OCR: 纯文本,移除可能的 Markdown 标记
+                resultTitle.textContent = '📄 识别结果 (纯文本)';
+                container.textContent = cleanMarkdown(content);
+                downloadBtn.style.display = 'none';
+            } else if (currentPromptType === 'table') {
+                // 表格识别: 保留格式
+                resultTitle.textContent = '📄 识别结果 (表格格式)';
+                container.textContent = content;
+                downloadBtn.style.display = 'inline-block';
+            } else if (currentPromptType === 'figure') {
+                // 图表解析: 结构化输出
+                resultTitle.textContent = '📄 识别结果 (图表分析)';
+                container.textContent = content;
+                downloadBtn.style.display = 'none';
+            } else if (currentPromptType === 'custom') {
+                // 自定义模式: 根据提示词内容智能判断
+                const customPrompt = document.getElementById('customPrompt').value.toLowerCase();
+                
+                // 判断是否包含 markdown 或 grounding 相关提示词
+                const isMarkdownPrompt = customPrompt.includes('markdown') || 
+                                        customPrompt.includes('grounding') ||
+                                        customPrompt.includes('table');
+                
+                if (isMarkdownPrompt) {
+                    // 包含格式化提示词,显示下载按钮
+                    resultTitle.textContent = '📄 识别结果 (格式化输出)';
+                    container.textContent = content;
+                    downloadBtn.style.display = 'inline-block';
+                } else {
+                    // 纯文本提示词,不显示下载按钮
+                    resultTitle.textContent = '📄 识别结果 (自定义)';
+                    container.textContent = content;
+                    downloadBtn.style.display = 'none';
+                }
+            } else {
+                // 其他模式: 原样显示
+                resultTitle.textContent = '📄 识别结果';
+                container.textContent = content;
+                downloadBtn.style.display = 'none';
+            }
+            
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 清理 Markdown 标记,返回纯文本
+        function cleanMarkdown(text) {
+            if (!text) return text;
+            
+            // 移除 Markdown 标题标记
+            text = text.replace(/^#{1,6}\s+/gm, '');
+            
+            // 移除列表标记
+            text = text.replace(/^[\*\-\+]\s+/gm, '');
+            text = text.replace(/^\d+\.\s+/gm, '');
+            
+            // 移除粗体和斜体
+            text = text.replace(/\*\*(.+?)\*\*/g, '$1');
+            text = text.replace(/\*(.+?)\*/g, '$1');
+            text = text.replace(/__(.+?)__/g, '$1');
+            text = text.replace(/_(.+?)_/g, '$1');
+            
+            // 移除链接,保留文本
+            text = text.replace(/\[(.+?)\]\(.+?\)/g, '$1');
+            
+            // 移除代码块标记
+            text = text.replace(/```[\s\S]*?```/g, '');
+            text = text.replace(/`(.+?)`/g, '$1');
+            
+            // 移除表格分隔符
+            text = text.replace(/^\|?[-:\s|]+\|?$/gm, '');
+            text = text.replace(/^\|(.+)\|$/gm, '$1');
+            
+            // 移除引用标记
+            text = text.replace(/^>\s+/gm, '');
+            
+            // 移除水平线
+            text = text.replace(/^[\-\*_]{3,}$/gm, '');
+            
+            return text.trim();
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message status-' + type;
+            statusEl.style.display = 'block';
+        }
+        
+        // 下载 Markdown 功能
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const resultText = document.getElementById('resultContainer').textContent;
+            
+            if (!resultText) {
+                alert('没有可下载的内容');
+                return;
+            }
+            
+            // 生成文件名
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const fileName = `ocr_result_${currentPromptType}_${timestamp}.md`;
+            
+            // 创建 Blob 对象
+            const blob = new Blob([resultText], { type: 'text/markdown;charset=utf-8' });
+            
+            // 创建下载链接
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            
+            // 触发下载
+            document.body.appendChild(a);
+            a.click();
+            
+            // 清理
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showStatus('✅ Markdown 文件已下载: ' + fileName, 'success');
+        });
+        
+        // ============ 模型状态检测 ============
+        
+        async function checkModelStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/model/status`);
+                const data = await response.json();
+                
+                const banner = document.getElementById('modelStatusBanner');
+                const statusText = document.getElementById('modelStatusText');
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
+                const startBtn = document.getElementById('startBtn');
+                
+                if (data.ready) {
+                    // 模型已就绪
+                    modelReady = true;
+                    banner.className = 'model-status-banner model-ready';
+                    statusText.textContent = '✅ ' + data.message;
+                    banner.style.display = 'block';
+                    
+                    // 启用上传功能
+                    uploadArea.style.opacity = '1';
+                    uploadArea.style.pointerEvents = 'auto';
+                    fileInput.disabled = false;
+                    
+                    // 3秒后隐藏横幅
+                    setTimeout(() => {
+                        banner.style.display = 'none';
+                    }, 3000);
+                    
+                    // 停止检测
+                    if (modelCheckInterval) {
+                        clearInterval(modelCheckInterval);
+                        modelCheckInterval = null;
+                    }
+                } else {
+                    // 模型未就绪
+                    modelReady = false;
+                    banner.className = 'model-status-banner model-loading';
+                    statusText.textContent = '⏳ ' + data.message;
+                    banner.style.display = 'block';
+                    
+                    // 禁用上传功能
+                    uploadArea.style.opacity = '0.5';
+                    uploadArea.style.pointerEvents = 'none';
+                    fileInput.disabled = true;
+                    startBtn.disabled = true;
+                }
+            } catch (error) {
+                // 检测失败
+                const banner = document.getElementById('modelStatusBanner');
+                const statusText = document.getElementById('modelStatusText');
+                
+                modelReady = false;
+                banner.className = 'model-status-banner model-error';
+                statusText.textContent = '❌ 无法连接到服务器';
+                banner.style.display = 'block';
+                
+                // 禁用上传功能
+                document.getElementById('uploadArea').style.opacity = '0.5';
+                document.getElementById('uploadArea').style.pointerEvents = 'none';
+                document.getElementById('fileInput').disabled = true;
+                document.getElementById('startBtn').disabled = true;
+            }
+        }
+        
+        // 页面加载时开始检测
+        window.addEventListener('DOMContentLoaded', () => {
+            // 立即检测一次
+            checkModelStatus();
+            
+            // 每5秒检测一次,直到模型就绪
+            modelCheckInterval = setInterval(() => {
+                if (!modelReady) {
+                    checkModelStatus();
+                }
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
