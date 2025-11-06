@@ -1,0 +1,37 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test build webui image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.webui
+          push: false
+          tags: deepseek-ocr-webui:test
+          load: true
+
+      - name: Test webui image
+        run: |
+          docker images
+          docker run --rm deepseek-ocr-webui:test python --version
+
+      - name: Build summary
+        run: |
+          echo "✅ WebUI image built successfully"
+          echo "Backend image build skipped (requires large base image)"

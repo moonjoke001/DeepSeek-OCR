@@ -68,6 +68,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push backend image
+        id: build-backend
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -78,8 +79,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
 
       - name: Build and push webui image
+        id: build-webui
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -90,19 +94,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-
-      - name: Generate artifact attestation for backend
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-          subject-digest: ${{ steps.meta-backend.outputs.digest }}
-          push-to-registry: true
-
-      - name: Generate artifact attestation for webui
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEBUI }}
-          subject-digest: ${{ steps.meta-webui.outputs.digest }}
-          push-to-registry: true
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
