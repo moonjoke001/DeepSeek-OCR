@@ -1,0 +1,73 @@
+services:
+  # DeepSeek OCR vLLM 服务 (生产环境)
+  deepseek-ocr:
+    image: deepseek-ocr:h100
+    container_name: deepseek-ocr
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']  # 使用第一块 GPU
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+    volumes:
+      - ./models:/workspace/models:ro
+      - ./workspace:/workspace
+    command:
+      - /workspace/models
+      - --served-model-name
+      - deepseek-ocr
+      - --logits_processors
+      - vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor
+      - --no-enable-prefix-caching
+      - --mm-processor-cache-gb
+      - "0"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --gpu-memory-utilization
+      - "0.9"
+      - --allowed-local-media-path
+      - /workspace
+      - --trust-remote-code
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - deepseek-net
+
+  # Web UI 服务
+  deepseek-web:
+    image: deepseek-ocr-deepseek-web:latest
+    container_name: deepseek-web
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./workspace:/workspace
+      - ./web-ui/backend/uploads:/app/uploads
+      - ./web-ui/backend/results:/app/results
+      - ./web-ui/backend/logs:/app/logs
+    environment:
+      - VLLM_API_URL=http://deepseek-ocr:8000/v1/chat/completions
+      - WORKSPACE_DIR=/workspace
+    depends_on:
+      - deepseek-ocr
+    restart: unless-stopped
+    networks:
+      - deepseek-net
+
+networks:
+  deepseek-net:
+    driver: bridge
