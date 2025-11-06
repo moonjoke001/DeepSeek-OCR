@@ -19,6 +19,53 @@ DeepSeek-OCR/
 
 ## 🚀 快速开始
 
+### 前置准备: 下载模型文件
+
+在部署前,需要先下载 DeepSeek-OCR 模型文件到 `models` 目录:
+
+#### 方法 1: 使用 Hugging Face CLI (推荐)
+
+```bash
+# 安装 huggingface-cli
+pip install -U huggingface_hub
+
+# 下载模型到 models 目录
+huggingface-cli download deepseek-ai/DeepSeek-OCR \
+  --local-dir ./models \
+  --local-dir-use-symlinks False
+```
+
+#### 方法 2: 使用 Git LFS
+
+```bash
+# 安装 git-lfs
+git lfs install
+
+# 克隆模型仓库
+cd models
+git clone https://huggingface.co/deepseek-ai/DeepSeek-OCR .
+```
+
+#### 方法 3: 手动下载
+
+访问 [Hugging Face 模型页面](https://huggingface.co/deepseek-ai/DeepSeek-OCR/tree/main) 手动下载所有文件到 `models` 目录。
+
+**模型文件大小**: 约 7-8 GB
+
+**下载完成后,models 目录结构应该如下**:
+```
+models/
+├── config.json
+├── modeling_deepseekocr.py
+├── configuration_deepseekv2.py
+├── model-00001-of-00003.safetensors
+├── model-00002-of-00003.safetensors
+├── model-00003-of-00003.safetensors
+├── tokenizer.json
+├── tokenizer_config.json
+└── ... (其他配置文件)
+```
+
 ### 本地部署 (RTX 5090)
 
 ```bash

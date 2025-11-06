@@ -1,0 +1,7 @@
+# 忽略所有模型文件
+*
+
+# 但保留以下文件
+!.gitignore
+!.gitkeep
+!README.md
