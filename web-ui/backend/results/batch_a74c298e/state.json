@@ -1,0 +1,32 @@
+{
+  "batch_id": "a74c298e",
+  "created_at": "2025-12-22T05:44:45.950635",
+  "status": "completed",
+  "prompt": "<image>\r\nFree OCR.",
+  "files": [
+    {
+      "file_id": "64ea8a",
+      "filename": "2.pdf",
+      "original_path": "results/batch_a74c298e/uploads/64ea8a_2.pdf",
+      "size": 67840,
+      "status": "completed",
+      "progress": 100,
+      "page_count": 1,
+      "result_path": "results/batch_a74c298e/individual/2.md",
+      "error": null
+    },
+    {
+      "file_id": "e550ec",
+      "filename": "DeepSeek_OCR_paper.pdf",
+      "original_path": "results/batch_a74c298e/uploads/e550ec_DeepSeek_OCR_paper.pdf",
+      "size": 7591202,
+      "status": "completed",
+      "progress": 100,
+      "page_count": 22,
+      "result_path": "results/batch_a74c298e/individual/DeepSeek_OCR_paper.md",
+      "error": null
+    }
+  ],
+  "current_file_index": 1,
+  "output_dir": "results/batch_a74c298e"
+}

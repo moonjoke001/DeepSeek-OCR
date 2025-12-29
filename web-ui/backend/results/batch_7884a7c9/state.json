@@ -1,0 +1,32 @@
+{
+  "batch_id": "7884a7c9",
+  "created_at": "2025-12-23T03:58:16.329107",
+  "status": "completed",
+  "prompt": "<image>\r\nFree OCR.",
+  "files": [
+    {
+      "file_id": "a205fc",
+      "filename": "2.pdf",
+      "original_path": "results/batch_7884a7c9/uploads/a205fc_2.pdf",
+      "size": 67840,
+      "status": "completed",
+      "progress": 100,
+      "page_count": 1,
+      "result_path": "results/batch_7884a7c9/individual/2.md",
+      "error": null
+    },
+    {
+      "file_id": "9e3dea",
+      "filename": "3.pdf",
+      "original_path": "results/batch_7884a7c9/uploads/9e3dea_3.pdf",
+      "size": 7591202,
+      "status": "completed",
+      "progress": 100,
+      "page_count": 22,
+      "result_path": "results/batch_7884a7c9/individual/3.md",
+      "error": null
+    }
+  ],
+  "current_file_index": 1,
+  "output_dir": "results/batch_7884a7c9"
+}

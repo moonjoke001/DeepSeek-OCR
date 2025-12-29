@@ -1,0 +1,11 @@
+{
+  "name": "Auto Continue Tasks",
+  "description": "当 agent 执行完成后，自动继续执行下一个任务",
+  "trigger": {
+    "type": "onAgentComplete"
+  },
+  "action": {
+    "type": "sendMessage",
+    "message": "检查 .kiro/specs/batch-pdf-processing/tasks.md 中是否还有未完成的任务（标记为 [ ]）。如果有，继续执行下一个任务。如果遇到 Checkpoint 任务，暂停并询问用户是否继续。"
+  }
+}

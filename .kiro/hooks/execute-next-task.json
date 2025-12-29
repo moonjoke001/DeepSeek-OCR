@@ -1,0 +1,11 @@
+{
+  "name": "Execute Next Task",
+  "description": "手动点击执行 batch-pdf-processing 的下一个任务",
+  "trigger": {
+    "type": "manual"
+  },
+  "action": {
+    "type": "sendMessage",
+    "message": "执行 .kiro/specs/batch-pdf-processing/tasks.md 中的下一个未完成任务。\n\n执行步骤：\n1. 读取 tasks.md 找到第一个 [ ] 标记的任务\n2. 参考 requirements.md 和 design.md 了解需求和设计\n3. 实现任务要求的功能\n4. 完成后使用 taskStatus 工具更新任务状态\n5. 如果是 Checkpoint 任务，验证后询问用户"
+  }
+}

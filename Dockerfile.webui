@@ -9,11 +9,12 @@ RUN pip install --no-cache-dir \
     python-multipart==0.0.12 \
     PyMuPDF==1.24.13 \
     requests==2.32.3 \
-    websockets==14.1
+    websockets==14.1 \
+    Pillow==10.4.0
 
 # 复制应用代码
 COPY web-ui/backend/main.py /app/
-COPY web-ui/frontend/index_fixed.html /app/static/index.html
+COPY web-ui/frontend/index_unified.html /app/static/index.html
 
 # 创建必要的目录
 RUN mkdir -p /app/uploads /app/results /app/logs /app/static

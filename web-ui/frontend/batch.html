@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek OCR - 批量处理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .nav-tab:hover, .nav-tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .batch-upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f9f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .batch-upload-area:hover, .batch-upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e8ff;
+        }
+        
+        .upload-icon { font-size: 48px; margin-bottom: 15px; }
+        
+        .file-list {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .file-item .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-item .file-name {
+            font-weight: 500;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-item .file-size {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .file-item .file-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #cce5ff; color: #004085; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        
+        .file-item .btn-remove {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .file-item .btn-remove:hover { background: #ee5a6f; }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-download {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-download:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .overall-progress {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9ff;
+            border-radius: 8px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            padding: 10px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-label { font-size: 12px; color: #666; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #667eea; }
+        
+        .result-preview {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .prompt-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .prompt-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .prompt-btn:hover, .prompt-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 DeepSeek OCR - 批量处理</h1>
+            <p>批量上传 PDF 文件，一键识别</p>
+        </div>
+        
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">单文件处理</a>
+            <a href="/batch" class="nav-tab active">批量处理</a>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">1. 选择识别模式</div>
+            <div class="prompt-selector">
+                <button class="prompt-btn active" data-prompt="free">基础 OCR</button>
+                <button class="prompt-btn" data-prompt="markdown">文档转 Markdown</button>
+                <button class="prompt-btn" data-prompt="table">表格识别</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">2. 上传 PDF 文件 (最多 20 个，总大小 500MB)</div>
+            <div class="batch-upload-area" id="batchUploadArea">
+                <div class="upload-icon">📁</div>
+                <p><strong>点击或拖拽多个 PDF 文件到此区域</strong></p>
+                <p style="color: #666; margin-top: 10px;">仅支持 PDF 格式</p>
+            </div>
+            <input type="file" id="batchFileInput" multiple accept=".pdf" style="display: none;">
+            
+            <div class="file-list" id="fileList"></div>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <button id="startBatchBtn" class="btn-primary" disabled>开始批量识别</button>
+        </div>
+        
+        <div class="card" id="progressCard" style="display: none;">
+            <div class="section-title">3. 处理进度</div>
+            <div class="overall-progress">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>整体进度</span>
+                    <span id="progressText">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">总文件数</div>
+                        <div class="stat-value" id="statTotal">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">已完成</div>
+                        <div class="stat-value" id="statCompleted">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">处理中</div>
+                        <div class="stat-value" id="statProcessing">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">失败</div>
+                        <div class="stat-value" id="statError">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" id="resultCard" style="display: none;">
+            <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>4. 识别结果</span>
+                <button id="downloadZipBtn" class="btn-download" disabled>📥 下载全部 (ZIP)</button>
+            </div>
+            <div id="resultPreview" class="result-preview"></div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by DeepSeek-OCR + vLLM</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const prompts = {
+            free: '<image>\nFree OCR.',
+            markdown: '<image>\n<|grounding|>Convert the document to markdown.',
+            table: '<image>\n<|grounding|>OCR this image.'
+        };
+        
+        let selectedFiles = [];
+        let currentPrompt = 'free';
+        let currentBatchId = null;
+        let ws = null;
+        
+        // 提示词选择
+        document.querySelectorAll('.prompt-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.prompt-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentPrompt = this.dataset.prompt;
+            });
+        });
+        
+        // 文件上传区域
+        const uploadArea = document.getElementById('batchUploadArea');
+        const fileInput = document.getElementById('batchFileInput');
+        const fileList = document.getElementById('fileList');
+        const startBtn = document.getElementById('startBatchBtn');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            const pdfFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+            
+            if (pdfFiles.length === 0) {
+                showStatus('请选择 PDF 文件', 'error');
+                return;
+            }
+            
+            // 检查数量限制
+            if (selectedFiles.length + pdfFiles.length > 20) {
+                showStatus('文件数量超过限制 (最多 20 个)', 'error');
+                return;
+            }
+            
+            // 检查大小限制
+            const totalSize = [...selectedFiles, ...pdfFiles].reduce((sum, f) => sum + f.size, 0);
+            if (totalSize > 500 * 1024 * 1024) {
+                showStatus('文件总大小超过限制 (最大 500MB)', 'error');
+                return;
+            }
+            
+            selectedFiles = [...selectedFiles, ...pdfFiles];
+            renderFileList();
+            startBtn.disabled = selectedFiles.length === 0;
+            showStatus(`已添加 ${pdfFiles.length} 个文件，共 ${selectedFiles.length} 个`, 'success');
+        }
+        
+        function renderFileList() {
+            fileList.innerHTML = selectedFiles.map((file, idx) => `
+                <div class="file-item" data-idx="${idx}">
+                    <div class="file-info">
+                        <span>📄</span>
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="file-status status-pending" id="status-${idx}">待处理</span>
+                        <button class="btn-remove" onclick="removeFile(${idx})">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function removeFile(idx) {
+            selectedFiles.splice(idx, 1);
+            renderFileList();
+            startBtn.disabled = selectedFiles.length === 0;
+        }
+        
+        function showStatus(message, type) {
+            const el = document.getElementById('statusMessage');
+            el.textContent = message;
+            el.className = 'status-message status-' + type;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+        
+        // 开始批量处理
+        startBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+            
+            startBtn.disabled = true;
+            showStatus('正在上传文件...', 'success');
+            
+            const formData = new FormData();
+            selectedFiles.forEach(file => formData.append('files', file));
+            formData.append('prompt', prompts[currentPrompt]);
+            
+            try {
+                // 上传文件
+                const uploadRes = await fetch(`${API_BASE}/api/batch/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                
+                if (uploadData.status !== 'success') {
+                    showStatus('上传失败: ' + uploadData.message, 'error');
+                    startBtn.disabled = false;
+                    return;
+                }
+                
+                currentBatchId = uploadData.batch_id;
+                showStatus('上传成功，开始处理...', 'success');
+                
+                // 显示进度卡片
+                document.getElementById('progressCard').style.display = 'block';
+                document.getElementById('resultCard').style.display = 'block';
+                document.getElementById('statTotal').textContent = uploadData.total_files;
+                
+                // 更新文件列表中的 file_id
+                uploadData.files.forEach((f, idx) => {
+                    if (selectedFiles[idx]) {
+                        selectedFiles[idx].file_id = f.file_id;
+                    }
+                });
+                
+                // 连接 WebSocket
+                connectBatchWebSocket(currentBatchId);
+                
+                // 启动处理
+                const startRes = await fetch(`${API_BASE}/api/batch/${currentBatchId}/start`, {
+                    method: 'POST'
+                });
+                const startData = await startRes.json();
+                
+                if (startData.status !== 'running') {
+                    showStatus('启动失败: ' + startData.message, 'error');
+                }
+                
+            } catch (error) {
+                showStatus('错误: ' + error.message, 'error');
+                startBtn.disabled = false;
+            }
+        });
+        
+        function connectBatchWebSocket(batchId) {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/batch/${batchId}`);
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onerror = () => console.log('WebSocket 错误');
+            ws.onclose = () => console.log('WebSocket 关闭');
+            
+            // 轮询备选
+            startPolling(batchId);
+        }
+        
+        function startPolling(batchId) {
+            const pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/batch/${batchId}/status`);
+                    const data = await res.json();
+                    
+                    if (data.status === 'success') {
+                        updateProgress(data.overall_progress);
+                        updateStats(data);
+                        updateFileStatuses(data.files);
+                        
+                        if (data.batch_status === 'completed') {
+                            clearInterval(pollInterval);
+                            onBatchComplete();
+                        }
+                    }
+                } catch (e) {
+                    console.log('轮询错误:', e);
+                }
+            }, 2000);
+        }
+        
+        function handleWebSocketMessage(data) {
+            if (data.type === 'progress') {
+                updateProgress(data.overall_progress);
+                updateFileProgress(data.file_id, data.file_progress);
+            } else if (data.type === 'file_complete') {
+                updateFileStatus(data.file_id, 'completed');
+                document.getElementById('statCompleted').textContent = 
+                    parseInt(document.getElementById('statCompleted').textContent) + 1;
+            } else if (data.type === 'error') {
+                updateFileStatus(data.file_id, 'error');
+                document.getElementById('statError').textContent = 
+                    parseInt(document.getElementById('statError').textContent) + 1;
+            } else if (data.type === 'batch_complete') {
+                onBatchComplete();
+            }
+        }
+        
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '%';
+        }
+        
+        function updateStats(data) {
+            document.getElementById('statTotal').textContent = data.total_files;
+            document.getElementById('statCompleted').textContent = data.completed_files;
+            document.getElementById('statError').textContent = data.error_files;
+            document.getElementById('statProcessing').textContent = 
+                data.total_files - data.completed_files - data.error_files;
+        }
+        
+        function updateFileStatuses(files) {
+            files.forEach((f, idx) => {
+                const statusEl = document.getElementById(`status-${idx}`);
+                if (statusEl) {
+                    statusEl.className = `file-status status-${f.status}`;
+                    statusEl.textContent = {
+                        pending: '待处理',
+                        processing: '处理中',
+                        completed: '已完成',
+                        error: '失败'
+                    }[f.status] || f.status;
+                }
+            });
+        }
+        
+        function updateFileStatus(fileId, status) {
+            const idx = selectedFiles.findIndex(f => f.file_id === fileId);
+            if (idx >= 0) {
+                const statusEl = document.getElementById(`status-${idx}`);
+                if (statusEl) {
+                    statusEl.className = `file-status status-${status}`;
+                    statusEl.textContent = {
+                        pending: '待处理',
+                        processing: '处理中',
+                        completed: '已完成',
+                        error: '失败'
+                    }[status];
+                }
+            }
+        }
+        
+        function updateFileProgress(fileId, progress) {
+            document.getElementById('statProcessing').textContent = '1';
+        }
+        
+        async function onBatchComplete() {
+            showStatus('✅ 批量处理完成!', 'success');
+            document.getElementById('downloadZipBtn').disabled = false;
+            startBtn.disabled = false;
+            
+            // 加载预览
+            try {
+                const res = await fetch(`${API_BASE}/api/batch/${currentBatchId}/status`);
+                const data = await res.json();
+                
+                if (data.completed_files > 0) {
+                    const firstCompleted = data.files.find(f => f.status === 'completed');
+                    if (firstCompleted) {
+                        const resultRes = await fetch(
+                            `${API_BASE}/api/batch/${currentBatchId}/result/${firstCompleted.file_id}`
+                        );
+                        const resultData = await resultRes.json();
+                        
+                        if (resultData.status === 'success') {
+                            const preview = document.getElementById('resultPreview');
+                            preview.textContent = `=== ${resultData.filename} ===\n\n${resultData.content.substring(0, 2000)}...`;
+                            preview.style.display = 'block';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('加载预览失败:', e);
+            }
+        }
+        
+        // 下载 ZIP
+        document.getElementById('downloadZipBtn').addEventListener('click', async () => {
+            if (!currentBatchId) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/batch/${currentBatchId}/download`);
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `batch_${currentBatchId}_results.zip`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showStatus('✅ 下载成功', 'success');
+                } else {
+                    const data = await res.json();
+                    showStatus('下载失败: ' + data.message, 'error');
+                }
+            } catch (e) {
+                showStatus('下载错误: ' + e.message, 'error');
+            }
+        });
+        
+        // 页面加载时检查是否有进行中的批次
+        window.addEventListener('DOMContentLoaded', async () => {
+            const savedBatchId = localStorage.getItem('currentBatchId');
+            if (savedBatchId) {
+                try {
+                    const res = await fetch(`${API_BASE}/api/batch/${savedBatchId}/status`);
+                    const data = await res.json();
+                    
+                    if (data.status === 'success' && data.batch_status === 'processing') {
+                        currentBatchId = savedBatchId;
+                        document.getElementById('progressCard').style.display = 'block';
+                        document.getElementById('resultCard').style.display = 'block';
+                        updateProgress(data.overall_progress);
+                        updateStats(data);
+                        connectBatchWebSocket(savedBatchId);
+                        showStatus('恢复进行中的批次...', 'success');
+                    }
+                } catch (e) {
+                    localStorage.removeItem('currentBatchId');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

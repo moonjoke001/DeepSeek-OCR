@@ -1,0 +1,12 @@
+{
+  "name": "Batch PDF Processing Auto Execute",
+  "description": "当保存 tasks.md 文件时，自动执行下一个未完成的任务",
+  "trigger": {
+    "type": "onFileSave",
+    "pattern": ".kiro/specs/batch-pdf-processing/tasks.md"
+  },
+  "action": {
+    "type": "sendMessage",
+    "message": "请继续执行 batch-pdf-processing spec 中的下一个未完成任务。参考 .kiro/specs/batch-pdf-processing/ 目录下的 requirements.md 和 design.md 文档。"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "batch_id": "aa843faf",
+  "created_at": "2025-12-22T06:35:31.191656",
+  "status": "completed",
+  "prompt": "<image>\r\n<|grounding|>Convert the document to markdown.",
+  "files": [
+    {
+      "file_id": "54a7b3",
+      "filename": "2.pdf",
+      "original_path": "results/batch_aa843faf/uploads/54a7b3_2.pdf",
+      "size": 67840,
+      "status": "completed",
+      "progress": 100,
+      "page_count": 1,
+      "result_path": "results/batch_aa843faf/individual/2.md",
+      "error": null
+    },
+    {
+      "file_id": "f41586",
+      "filename": "3.pdf",
+      "original_path": "results/batch_aa843faf/uploads/f41586_3.pdf",
+      "size": 7591202,
+      "status": "completed",
+      "progress": 100,
+      "page_count": 22,
+      "result_path": "results/batch_aa843faf/individual/3.md",
+      "error": null
+    }
+  ],
+  "current_file_index": 1,
+  "output_dir": "results/batch_aa843faf"
+}

@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek OCR Web UI</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --success: #28a745;
+            --error: #dc3545;
+            --warning: #ffc107;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-600: #6c757d;
+            --shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            padding: 30px 0;
+        }
+        
+        .header h1 { font-size: 2.5rem; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 DeepSeek OCR</h1>
+            <p>智能文档识别 · 支持单文件和批量处理</p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">识别模式</div>
+            <div class="mode-tabs">
+                <div class="mode-tab active" data-prompt="free">
+                    <div class="icon">📝</div>
+                    <div class="label">基础 OCR</div>
+                    <div class="desc">纯文本提取</div>
+                </div>
+                <div class="mode-tab" data-prompt="markdown">
+                    <div class="icon">📄</div>
+                    <div class="label">Markdown</div>
+                    <div class="desc">保留格式结构</div>
+                </div>
+                <div class="mode-tab" data-prompt="table">
+                    <div class="icon">📊</div>
+                    <div class="label">表格识别</div>
+                    <div class="desc">精准表格解析</div>
+                </div>
+                <div class="mode-tab" data-prompt="figure">
+                    <div class="icon">📈</div>
+                    <div class="label">图表解析</div>
+                    <div class="desc">图表数据提取</div>
+                </div>
+                <div class="mode-tab" data-prompt="custom">
+                    <div class="icon">⚙️</div>
+                    <div class="label">自定义</div>
+                    <div class="desc">自由提示词</div>
+                </div>
+            </div>
+            
+            <!-- 自定义提示词输入框 -->
+            <div id="customPromptArea" style="display: none; margin-top: 16px;">
+                <textarea id="customPrompt" placeholder="输入自定义提示词，例如: <image>\nFree OCR." 
+                    style="width:100%; padding:12px; border:2px solid var(--gray-200); border-radius:8px; 
+                    font-family:'Courier New',monospace; font-size:14px; resize:vertical; min-height:80px;"></textarea>
+                <div style="margin-top:10px; padding:12px; background:#f9f9ff; border-radius:8px; border:1px solid var(--primary);">
+                    <div style="font-weight:600; margin-bottom:8px; color:var(--primary);">📝 提示词示例 (点击使用):</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                        <button class="prompt-example" data-prompt="<image>\nFree OCR.">基础 OCR</button>
+                        <button class="prompt-example" data-prompt="<image>\n<|grounding|>Convert the document to markdown.">文档转 Markdown</button>
+                        <button class="prompt-example" data-prompt="<image>\n<|grounding|>OCR this image.">图片 OCR (带坐标)</button>
+                        <button class="prompt-example" data-prompt="<image>\nParse the figure.">图表解析</button>
+                        <button class="prompt-example" data-prompt="<image>\nDescribe this image in detail.">详细描述</button>
+                        <button class="prompt-example" data-prompt="<image>\nLocate <|ref|>在此输入要定位的文字<|/ref|> in the image.">📍 定位识别</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                上传文件
+                <span class="badge" id="fileCountBadge" style="display: none;">0 个文件</span>
+            </div>
+            
+            <!-- 标签切换 -->
+            <div class="upload-tabs">
+                <div class="upload-tab active" id="tabUpload" onclick="switchTab('upload')">
+                    <span>📁</span> 上传文件
+                </div>
+                <div class="upload-tab" id="tabPreview" onclick="switchTab('preview')">
+                    <span>👁️</span> 文件预览
+                </div>
+            </div>
+            
+            <!-- 上传区域 -->
+            <div id="uploadPanel" class="tab-panel active">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <p class="upload-text"><strong>点击或拖拽文件到此区域</strong></p>
+                    <p class="upload-hint">支持 PDF / PNG / JPG · 可多选批量上传</p>
+                </div>
+            </div>
+            
+            <!-- 预览区域 -->
+            <div id="previewPanel" class="tab-panel">
+                <div class="preview-container" id="previewContainer">
+                    <div class="preview-placeholder">
+                        <div style="font-size:48px;margin-bottom:12px;">📄</div>
+                        <p>请先上传文件</p>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg" style="display:none">
+            
+            <!-- 文件列表 -->
+            <div id="fileList" class="file-list"></div>
+            
+            <!-- 状态消息 -->
+            <div id="statusMessage" class="status-message"></div>
+            
+            <!-- 开始按钮 -->
+            <button id="startBtn" class="btn-primary" disabled>
+                <span id="btnText">选择文件后开始识别</span>
+            </button>
+        </div>
+
+        <!-- 进度区域 -->
+        <div class="card" id="progressCard" style="display: none;">
+            <div class="section-title">处理进度</div>
+            <div class="progress-wrapper">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <span id="progressText" class="progress-text">0%</span>
+            </div>
+            <div id="batchStats" class="batch-stats" style="display: none;"></div>
+        </div>
+        
+        <!-- 结果区域 -->
+        <div class="card" id="resultCard" style="display: none;">
+            <div class="section-title">
+                识别结果
+                <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+                    <button id="previewTableBtn" class="btn-preview" style="display: none;" onclick="toggleTablePreview()">📊 表格预览</button>
+                    <button id="copyExcelBtn" class="btn-copy-excel" style="display: none;" onclick="copyAsExcel()">📋 复制表格</button>
+                    <button id="downloadBtn" class="btn-download" style="display: none;">📥 下载</button>
+                </div>
+            </div>
+            <div id="resultContainer" class="result-container"></div>
+            <div id="tablePreviewContainer" class="table-preview-container" style="display: none;"></div>
+        </div>
+        
+        <div class="footer">Powered by DeepSeek-OCR + vLLM</div>
+    </div>
+
+    <style>
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title .badge {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* 模式选择 */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .mode-tab {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--gray-200);
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .mode-tab:hover { border-color: var(--primary); }
+        .mode-tab.active { border-color: var(--primary); background: #f0f4ff; }
+        .mode-tab .icon { font-size: 24px; margin-bottom: 4px; }
+        .mode-tab .label { font-weight: 600; font-size: 14px; }
+        .mode-tab .desc { 
+            font-size: 11px; 
+            color: var(--gray-600); 
+            margin-top: 4px;
+            opacity: 0.8;
+            letter-spacing: 0.3px;
+        }
+        .mode-tab.active .desc { color: var(--primary); opacity: 1; }
+        .mode-tab.has-result::after {
+            content: '●';
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-size: 8px;
+            color: var(--success);
+        }
+        .mode-tab { position: relative; }
+        
+        /* 上传/预览标签切换 */
+        .upload-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 16px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        
+        .upload-tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--gray-600);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .upload-tab:hover { color: var(--primary); }
+        .upload-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* 上传区域 */
+        .upload-area {
+            border: 2px dashed var(--gray-200);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--gray-100);
+        }
+        
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: #f0f4ff;
+        }
+        
+        .upload-icon { font-size: 48px; margin-bottom: 12px; }
+        .upload-text { font-size: 16px; color: #333; }
+        .upload-hint { font-size: 13px; color: var(--gray-600); margin-top: 8px; }
+        
+        /* 预览区域 */
+        .preview-container {
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            min-height: 300px;
+            max-height: 400px;
+            overflow: auto;
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .preview-container:hover, .preview-container.dragover {
+            border-color: var(--primary);
+            background: #f0f4ff;
+        }
+        
+        .preview-placeholder {
+            text-align: center;
+            color: var(--gray-600);
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 380px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        .preview-pdf-info {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .preview-pdf-info .icon { font-size: 64px; margin-bottom: 16px; }
+        .preview-pdf-info .name { font-weight: 600; font-size: 18px; margin-bottom: 8px; }
+        .preview-pdf-info .pages { color: var(--gray-600); }
+
+        /* 文件列表 - 紧凑网格布局 */
+        .file-list { 
+            margin-top: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        
+        .file-list.expanded {
+            max-height: none;
+        }
+        
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--gray-100);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            min-width: 0;
+        }
+        
+        .file-item:hover { background: #e8f0fe; }
+        .file-item.selected { border-color: var(--primary); background: #f0f4ff; }
+        
+        .file-info { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            min-width: 0;
+            flex: 1;
+        }
+        .file-icon { font-size: 16px; flex-shrink: 0; }
+        .file-name { 
+            font-weight: 500; 
+            font-size: 13px;
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .file-status {
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            flex-shrink: 0;
+            margin-left: 4px;
+        }
+        
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #cce5ff; color: #004085; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        
+        .btn-remove {
+            width: 20px; height: 20px;
+            border: none; border-radius: 50%;
+            background: #ff6b6b; color: white;
+            cursor: pointer; font-size: 12px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            margin-left: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-remove:hover { background: #ee5a6f; transform: scale(1.1); }
+        
+        .file-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 0 4px;
+        }
+        
+        .file-list-header .file-count {
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+        
+        .file-list-header .btn-toggle {
+            font-size: 12px;
+            color: var(--primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        
+        .file-list-header .btn-toggle:hover {
+            text-decoration: underline;
+        }
+        
+        .btn-clear-all {
+            font-size: 12px;
+            color: var(--error);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        
+        .btn-clear-all:hover {
+            text-decoration: underline;
+        }
+
+        /* 按钮 */
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-download {
+            padding: 6px 14px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .btn-preview {
+            padding: 6px 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-preview:hover { background: var(--primary-dark); }
+        .btn-preview.active { background: var(--primary-dark); }
+        
+        .btn-copy-excel {
+            padding: 6px 14px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-copy-excel:hover { background: #138496; }
+        
+        .table-preview-container {
+            max-height: 600px;
+            overflow: auto;
+            padding: 24px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-top: 12px;
+        }
+        
+        .table-preview-container .file-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .table-preview-container .file-header {
+            font-weight: 600;
+            font-size: 15px;
+            color: #1e40af;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .table-preview-container .section-divider {
+            border: none;
+            border-top: 2px dashed #e2e8f0;
+            margin: 24px 0;
+        }
+        
+        .table-preview-container .table-wrapper,
+        .table-preview-container .smart-table-wrapper {
+            overflow-x: auto;
+            margin: 16px 0;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .table-preview-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: white;
+        }
+        
+        .table-preview-container th,
+        .table-preview-container td {
+            border: 1px solid #e2e8f0;
+            padding: 10px 14px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        
+        .table-preview-container th {
+            background: #0d7c66;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        
+        .table-preview-container tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+        
+        .table-preview-container tr:hover td {
+            background: #eef2ff;
+        }
+        
+        .table-preview-container .merged-cell {
+            background: #f0f9ff !important;
+            font-weight: 600;
+            color: #0369a1;
+            text-align: center;
+            border-left: 3px solid #0ea5e9;
+        }
+        
+        .table-preview-container .formatted-content {
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            line-height: 1.8;
+        }
+        
+        .table-preview-container .content-heading {
+            color: #1e40af;
+            margin: 20px 0 12px 0;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        
+        .table-preview-container .content-heading:first-child {
+            margin-top: 0;
+        }
+        
+        .table-preview-container .text-line {
+            margin: 8px 0;
+            color: #334155;
+            line-height: 1.7;
+        }
+        
+        .table-preview-container .list-item {
+            margin: 6px 0;
+            padding-left: 8px;
+            color: #475569;
+            line-height: 1.6;
+        }
+        
+        .table-preview-container .non-table-content {
+            margin: 12px 0;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #0ea5e9;
+        }
+        
+        .table-preview-container .kv-table .kv-key {
+            font-weight: 600;
+            background: #f0f9ff;
+            min-width: 120px;
+            color: #0c4a6e;
+        }
+        
+        .table-preview-container .paired-table .numeric {
+            text-align: right;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-weight: 500;
+            color: #059669;
+        }
+        
+        .table-preview-container .numeric {
+            text-align: right;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            color: #059669;
+        }
+        
+        .table-preview-container .coordinate-table {
+            border: none;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table-preview-container .coordinate-table th {
+            background: #0d7c66;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 12px 14px;
+            border: 1px solid #0a6b58;
+            text-shadow: none;
+        }
+        
+        .table-preview-container .coordinate-table td {
+            white-space: nowrap;
+            padding: 10px 14px;
+            color: #334155;
+        }
+        
+        .table-preview-container .coordinate-table tr:nth-child(odd) td {
+            background: #ffffff;
+        }
+        
+        .table-preview-container .coordinate-table tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+        
+        .table-preview-container .coordinate-table tr:hover td {
+            background: #e0f2fe;
+        }
+        
+        .table-preview-container .rowspan-cell {
+            background: #f0f9ff !important;
+            font-weight: 600;
+            vertical-align: middle;
+            text-align: center;
+            border-left: 3px solid #0ea5e9;
+            color: #0369a1;
+        }
+        
+        /* 进度条 */
+        .progress-wrapper { display: flex; align-items: center; gap: 12px; }
+        .progress-bar { flex: 1; height: 24px; background: var(--gray-200); border-radius: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-dark)); transition: width 0.3s; }
+        .progress-text { font-weight: 600; min-width: 45px; }
+        
+        .batch-stats {
+            display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;
+        }
+        
+        .stat-item { padding: 12px 20px; background: var(--gray-100); border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .stat-label { font-size: 12px; color: var(--gray-600); }
+
+        /* 结果 */
+        .result-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--gray-100);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        /* 状态消息 */
+        .status-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+        
+        .status-success { background: #d4edda; color: #155724; display: block; }
+        .status-error { background: #f8d7da; color: #721c24; display: block; }
+        
+        .footer { text-align: center; color: white; margin-top: 30px; opacity: 0.8; }
+        
+        .prompt-example {
+            padding: 6px 12px;
+            background: white;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .prompt-example:hover {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const PROMPTS = {
+            free: '<image>\nFree OCR.',
+            markdown: '<image>\n<|grounding|>Convert the document to markdown.',
+            table: '<image>\n<|grounding|>OCR this image.',
+            figure: '<image>\nParse the figure.',
+            custom: ''
+        };
+        
+        let currentPrompt = 'free';
+        
+        // 每个模式独立的完整会话状态
+        const modeSessions = {
+            free: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            markdown: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            table: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            figure: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] }
+        };
+        
+        function getSession() { return modeSessions[currentPrompt]; }
+        
+        function switchTab(tab) {
+            document.getElementById('tabUpload').classList.toggle('active', tab === 'upload');
+            document.getElementById('tabPreview').classList.toggle('active', tab === 'preview');
+            document.getElementById('uploadPanel').classList.toggle('active', tab === 'upload');
+            document.getElementById('previewPanel').classList.toggle('active', tab === 'preview');
+        }
+        
+        function updateModeIndicators() {
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                const mode = tab.dataset.prompt;
+                tab.classList.toggle('has-result', modeSessions[mode].result !== null);
+            });
+        }
+        
+        function restoreModeState() {
+            const session = getSession();
+            updateUI();
+            
+            if (session.status === 'processing') {
+                document.getElementById('progressCard').style.display = 'block';
+                document.getElementById('progressFill').style.width = session.progress + '%';
+                document.getElementById('progressText').textContent = session.progress + '%';
+            } else {
+                document.getElementById('progressCard').style.display = 'none';
+                document.getElementById('batchStats').style.display = 'none';
+            }
+            
+            if (session.result) {
+                document.getElementById('resultCard').style.display = 'block';
+                // 显示 Markdown 格式内容
+                document.getElementById('resultContainer').textContent = session.markdownContent || session.result.content;
+                showResultButtons(session.result.downloadFn);
+                // 重置预览按钮状态
+                document.getElementById('previewTableBtn').classList.remove('active');
+                document.getElementById('previewTableBtn').textContent = '📊 表格预览';
+                document.getElementById('tablePreviewContainer').style.display = 'none';
+                document.getElementById('resultContainer').style.display = 'block';
+            } else {
+                document.getElementById('resultCard').style.display = 'none';
+            }
+            
+            if (session.files.length > 0) {
+                showPreview(session.previewIndex);
+            } else {
+                document.getElementById('previewContainer').innerHTML = `
+                    <div class="preview-placeholder">
+                        <div style="font-size:48px;margin-bottom:12px;">📄</div>
+                        <p>请先上传文件</p>
+                    </div>
+                `;
+                switchTab('upload');
+            }
+            
+            document.getElementById('statusMessage').className = 'status-message';
+        }
+        
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentPrompt = this.dataset.prompt;
+                document.getElementById('customPromptArea').style.display = currentPrompt === 'custom' ? 'block' : 'none';
+                restoreModeState();
+            });
+        });
+        
+        // 提示词示例点击
+        document.querySelectorAll('.prompt-example').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.getElementById('customPrompt').value = this.dataset.prompt;
+            });
+        });
+
+        // 上传区域
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const startBtn = document.getElementById('startBtn');
+        const btnText = document.getElementById('btnText');
+        const fileCountBadge = document.getElementById('fileCountBadge');
+        const previewContainer = document.getElementById('previewContainer');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        // 预览区域也支持拖拽上传
+        previewContainer.addEventListener('click', () => fileInput.click());
+        previewContainer.addEventListener('dragover', e => { 
+            e.preventDefault(); 
+            previewContainer.classList.add('dragover'); 
+        });
+        previewContainer.addEventListener('dragleave', () => previewContainer.classList.remove('dragover'));
+        previewContainer.addEventListener('drop', e => {
+            e.preventDefault();
+            previewContainer.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
+        
+        function handleFiles(files) {
+            const session = getSession();
+            const validFiles = Array.from(files).filter(f => /\.(pdf|png|jpg|jpeg)$/i.test(f.name));
+            
+            if (validFiles.length === 0) {
+                showStatus('请选择有效的文件格式 (PDF/PNG/JPG)', 'error');
+                return;
+            }
+            
+            if (session.files.length + validFiles.length > 20) {
+                showStatus('最多支持 20 个文件', 'error');
+                return;
+            }
+            
+            // 保留已处理文件的状态，新文件默认为 pending
+            session.files = [...session.files, ...validFiles];
+            session.previewIndex = 0;
+            updateUI();
+            
+            if (session.files.length > 0) {
+                switchTab('preview');
+                showPreview(0);
+            }
+        }
+
+        function showPreview(index) {
+            const session = getSession();
+            if (index < 0 || index >= session.files.length) return;
+            
+            session.previewIndex = index;
+            const file = session.files[index];
+            const container = document.getElementById('previewContainer');
+            
+            document.querySelectorAll('.file-item').forEach((el, i) => {
+                el.classList.toggle('selected', i === index);
+            });
+            
+            if (file.type.startsWith('image/') || /\.(png|jpg|jpeg)$/i.test(file.name)) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    container.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="${file.name}">`;
+                };
+                reader.readAsDataURL(file);
+            } else if (file.name.endsWith('.pdf')) {
+                container.innerHTML = `
+                    <div class="preview-pdf-info">
+                        <div class="icon">📄</div>
+                        <div class="name">${file.name}</div>
+                        <div class="pages">PDF 文件 · ${(file.size/1024/1024).toFixed(2)} MB</div>
+                    </div>
+                `;
+            }
+            switchTab('preview');
+        }
+
+        function updateUI() {
+            const session = getSession();
+            const fileList = document.getElementById('fileList');
+            
+            // 初始化文件状态数组
+            while (session.fileStatuses.length < session.files.length) {
+                session.fileStatuses.push('pending');
+            }
+            
+            const count = session.files.length;
+            const completedCount = session.fileStatuses.filter(s => s === 'completed').length;
+            const pendingCount = session.fileStatuses.filter(s => s === 'pending').length;
+            
+            // 生成文件列表 HTML
+            let html = '';
+            if (count > 0) {
+                html = `
+                    <div class="file-list-header">
+                        <span class="file-count">共 ${count} 个文件 (${completedCount} 已完成, ${pendingCount} 待处理)</span>
+                        <div>
+                            <button class="btn-toggle" onclick="toggleFileList()">展开/收起</button>
+                            <button class="btn-clear-all" onclick="clearAllFiles()">清空全部</button>
+                        </div>
+                    </div>
+                    <div class="file-grid">
+                        ${session.files.map((f, i) => `
+                            <div class="file-item ${i === session.previewIndex ? 'selected' : ''}" onclick="showPreview(${i})" title="${f.name}">
+                                <div class="file-info">
+                                    <span class="file-icon">${f.name.endsWith('.pdf') ? '📄' : '🖼️'}</span>
+                                    <span class="file-name">${f.name}</span>
+                                </div>
+                                <span class="file-status status-${session.fileStatuses[i]}">${{pending:'待',processing:'...',completed:'✓',error:'✗'}[session.fileStatuses[i]]}</span>
+                                <button class="btn-remove" onclick="event.stopPropagation();removeFile(${i})">×</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            fileList.innerHTML = html;
+            
+            fileCountBadge.style.display = count > 0 ? 'inline' : 'none';
+            fileCountBadge.textContent = `${count} 个文件`;
+            
+            startBtn.disabled = count === 0;
+            btnText.textContent = count === 0 ? '选择文件后开始识别' : 
+                (count > 1 ? `开始批量识别 (${count} 个文件)` : '开始识别');
+            
+            if (count === 0) {
+                document.getElementById('previewContainer').innerHTML = `
+                    <div class="preview-placeholder">
+                        <div style="font-size:48px;margin-bottom:12px;">📄</div>
+                        <p>请先上传文件</p>
+                    </div>
+                `;
+                switchTab('upload');
+            }
+        }
+        
+        function toggleFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.classList.toggle('expanded');
+        }
+        
+        function clearAllFiles() {
+            const session = getSession();
+            session.files = [];
+            session.fileStatuses = [];
+            session.result = null;
+            session.allResults = [];
+            session.markdownContent = null;
+            session.progress = 0;
+            session.status = 'idle';
+            session.headerColor = null;
+            session.previewIndex = 0;
+            document.getElementById('resultCard').style.display = 'none';
+            document.getElementById('progressCard').style.display = 'none';
+            updateModeIndicators();
+            updateUI();
+        }
+        
+        function removeFile(idx) {
+            const session = getSession();
+            session.files.splice(idx, 1);
+            session.fileStatuses.splice(idx, 1);
+            
+            // 如果所有文件都被删除，清空识别结果和颜色
+            if (session.files.length === 0) {
+                session.result = null;
+                session.allResults = [];
+                session.markdownContent = null;
+                session.progress = 0;
+                session.status = 'idle';
+                session.headerColor = null;
+                document.getElementById('resultCard').style.display = 'none';
+                document.getElementById('progressCard').style.display = 'none';
+                updateModeIndicators();
+            }
+            
+            if (session.previewIndex >= session.files.length) {
+                session.previewIndex = Math.max(0, session.files.length - 1);
+            }
+            updateUI();
+            if (session.files.length > 0) showPreview(session.previewIndex);
+        }
+        
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMessage');
+            el.textContent = msg;
+            el.className = 'status-message status-' + type;
+        }
+        
+        function showResultButtons(downloadFn) {
+            const downloadBtn = document.getElementById('downloadBtn');
+            const previewBtn = document.getElementById('previewTableBtn');
+            const copyExcelBtn = document.getElementById('copyExcelBtn');
+            
+            downloadBtn.style.display = 'inline';
+            downloadBtn.onclick = downloadFn;
+            
+            // 所有模式都显示表格预览按钮（结果可能包含表格）
+            previewBtn.style.display = 'inline';
+            previewBtn.classList.remove('active');
+            previewBtn.textContent = '📊 表格预览';
+            document.getElementById('tablePreviewContainer').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'block';
+            
+            // 显示复制到Excel按钮
+            copyExcelBtn.style.display = 'inline';
+        }
+        
+        // 复制为 Excel 格式（Tab 分隔）
+        function copyAsExcel() {
+            const session = getSession();
+            const content = session.markdownContent || session.result?.content || '';
+            
+            if (!content) {
+                showStatus('没有可复制的内容', 'error');
+                return;
+            }
+            
+            // 将 Markdown 表格转换为 Tab 分隔格式
+            const excelText = convertMarkdownToExcel(content);
+            
+            navigator.clipboard.writeText(excelText).then(() => {
+                showStatus('✅ 已复制到剪贴板，可直接粘贴到 Excel/Word', 'success');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                showStatus('复制失败，请手动复制', 'error');
+            });
+        }
+        
+        // 将 Markdown 表格转换为 Tab 分隔格式
+        function convertMarkdownToExcel(markdown) {
+            const lines = markdown.split('\n');
+            const result = [];
+            
+            for (const line of lines) {
+                const trimmed = line.trim();
+                
+                // 跳过分隔行 (|---|---|)
+                if (/^[\|\s\-:]+$/.test(trimmed) && trimmed.includes('-')) {
+                    continue;
+                }
+                
+                // 检测表格行
+                if (trimmed.includes('|') && (trimmed.match(/\|/g) || []).length >= 2) {
+                    // 解析表格行
+                    let row = trimmed;
+                    if (row.startsWith('|')) row = row.substring(1);
+                    if (row.endsWith('|')) row = row.slice(0, -1);
+                    
+                    const cells = row.split('|').map(c => c.trim());
+                    result.push(cells.join('\t'));
+                } else if (trimmed && !trimmed.startsWith('📄') && trimmed !== '---') {
+                    // 非表格内容，保留原样
+                    result.push(trimmed);
+                }
+            }
+            
+            return result.join('\n');
+        }
+        
+        function toggleTablePreview() {
+            const previewBtn = document.getElementById('previewTableBtn');
+            const previewContainer = document.getElementById('tablePreviewContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            const isActive = previewBtn.classList.toggle('active');
+            
+            if (isActive) {
+                previewBtn.textContent = '📝 Markdown';
+                const content = resultContainer.textContent;
+                
+                // 检测是否是带坐标的 OCR 结果
+                const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(content);
+                
+                if (hasCoordinates) {
+                    // 解析坐标数据并渲染为 HTML 表格
+                    const tableData = parseCoordinateOCR(content);
+                    if (tableData && tableData.rows.length > 0) {
+                        previewContainer.innerHTML = renderCoordinateTable(tableData);
+                    } else {
+                        previewContainer.innerHTML = '<p>未检测到表格数据</p>';
+                    }
+                } else {
+                    previewContainer.innerHTML = parseMarkdownTables(content);
+                }
+                
+                // 应用提取的颜色到表头
+                const session = getSession();
+                if (session.headerColor) {
+                    applyHeaderColor(previewContainer, session.headerColor);
+                }
+                
+                previewContainer.style.display = 'block';
+                resultContainer.style.display = 'none';
+            } else {
+                previewBtn.textContent = '📊 表格预览';
+                previewContainer.style.display = 'none';
+                resultContainer.style.display = 'block';
+                
+                // 切换回源码时，显示 Markdown 格式
+                const session = getSession();
+                if (session.result && session.markdownContent) {
+                    resultContainer.textContent = session.markdownContent;
+                }
+            }
+        }
+        
+        // 将带坐标的 OCR 结果转换为 Markdown 表格
+        function convertToMarkdown(rawContent) {
+            const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(rawContent);
+            
+            if (!hasCoordinates) {
+                return rawContent;
+            }
+            
+            const tableData = parseCoordinateOCR(rawContent);
+            if (!tableData || tableData.rows.length === 0) {
+                return rawContent;
+            }
+            
+            // 生成 Markdown 表格
+            let markdown = '';
+            const colCount = tableData.colCount || tableData.rows[0].length;
+            
+            tableData.rows.forEach((row, rowIdx) => {
+                const cells = row.map(c => c.text || '');
+                markdown += '| ' + cells.join(' | ') + ' |\n';
+                
+                // 第一行后添加分隔行
+                if (rowIdx === 0) {
+                    markdown += '| ' + cells.map(() => '---').join(' | ') + ' |\n';
+                }
+            });
+            
+            return markdown;
+        }
+        
+        // 应用表头颜色
+        function applyHeaderColor(container, color) {
+            const headers = container.querySelectorAll('th');
+            headers.forEach(th => {
+                th.style.background = color;
+                th.style.borderColor = color;
+            });
+        }
+        
+        // 解析带坐标的 OCR 结果，重建表格结构（改进版）
+        function parseCoordinateOCR(text) {
+            const lines = text.split('\n').filter(l => l.trim());
+            const items = [];
+            
+            // 解析每行，提取文本和坐标
+            for (const line of lines) {
+                const match = line.match(/^(.+?)\[\[(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\]\]$/);
+                if (match) {
+                    const x1 = parseInt(match[2]);
+                    const y1 = parseInt(match[3]);
+                    const x2 = parseInt(match[4]);
+                    const y2 = parseInt(match[5]);
+                    items.push({
+                        text: match[1].trim(),
+                        x1, y1, x2, y2,
+                        cx: (x1 + x2) / 2,
+                        cy: (y1 + y2) / 2,
+                        width: x2 - x1,
+                        height: y2 - y1
+                    });
+                }
+            }
+            
+            if (items.length === 0) return null;
+            
+            // 计算动态 tolerance 基于平均高度
+            const avgHeight = items.reduce((s, i) => s + i.height, 0) / items.length;
+            const rowTolerance = avgHeight * 0.8;
+            const colTolerance = avgHeight * 1.5;
+            
+            // 1. 分析列结构：基于 X 左边界聚类（更准确）
+            const xLefts = [...new Set(items.map(i => i.x1))].sort((a, b) => a - b);
+            const columns = clusterPositions(xLefts, colTolerance);
+            
+            // 2. 分析行结构：基于 Y 上边界聚类
+            const yTops = [...new Set(items.map(i => i.y1))].sort((a, b) => a - b);
+            const rows = clusterPositions(yTops, rowTolerance);
+            
+            // 3. 将每个 item 分配到网格，同一单元格的文本合并
+            const grid = [];
+            for (let r = 0; r < rows.length; r++) {
+                grid[r] = new Array(columns.length).fill(null).map(() => ({ texts: [], rowspan: 1, colspan: 1 }));
+            }
+            
+            // 按 Y 坐标排序，确保同一单元格内的文本按顺序合并
+            const sortedItems = [...items].sort((a, b) => a.y1 - b.y1 || a.x1 - b.x1);
+            
+            for (const item of sortedItems) {
+                const rowIdx = findNearestIndex(rows, item.y1, rowTolerance * 1.5);
+                const colIdx = findNearestIndex(columns, item.x1, colTolerance * 1.5);
+                
+                if (rowIdx !== -1 && colIdx !== -1) {
+                    grid[rowIdx][colIdx].texts.push(item.text);
+                }
+            }
+            
+            // 4. 合并文本并清理空行
+            const finalGrid = [];
+            for (let r = 0; r < grid.length; r++) {
+                const row = grid[r].map(cell => ({
+                    text: cell.texts.join(' '),
+                    rowspan: 1,
+                    colspan: 1
+                }));
+                // 只保留有内容的行
+                if (row.some(cell => cell.text.trim())) {
+                    finalGrid.push(row);
+                }
+            }
+            
+            // 5. 检测并处理 rowspan（垂直合并单元格）
+            for (let c = 0; c < columns.length; c++) {
+                for (let r = 0; r < finalGrid.length - 1; r++) {
+                    const cell = finalGrid[r][c];
+                    if (!cell.text) continue;
+                    
+                    // 检查下方连续空单元格
+                    let span = 1;
+                    for (let r2 = r + 1; r2 < finalGrid.length; r2++) {
+                        if (!finalGrid[r2][c].text && !finalGrid[r2][c].skip) {
+                            span++;
+                            finalGrid[r2][c].skip = true;
+                        } else {
+                            break;
+                        }
+                    }
+                    if (span > 1) cell.rowspan = span;
+                }
+            }
+            
+            return { rows: finalGrid, colCount: columns.length };
+        }
+        
+        // 位置聚类：将相近的坐标归为一组
+        function clusterPositions(positions, tolerance) {
+            if (positions.length === 0) return [];
+            
+            const clusters = [];
+            let currentCluster = [positions[0]];
+            
+            for (let i = 1; i < positions.length; i++) {
+                if (positions[i] - positions[i-1] <= tolerance) {
+                    currentCluster.push(positions[i]);
+                } else {
+                    clusters.push(average(currentCluster));
+                    currentCluster = [positions[i]];
+                }
+            }
+            clusters.push(average(currentCluster));
+            
+            return clusters;
+        }
+        
+        function average(arr) {
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        }
+        
+        function findNearestIndex(arr, value, maxDist = Infinity) {
+            let minDist = Infinity;
+            let minIdx = -1;
+            for (let i = 0; i < arr.length; i++) {
+                const dist = Math.abs(arr[i] - value);
+                if (dist < minDist && dist <= maxDist) {
+                    minDist = dist;
+                    minIdx = i;
+                }
+            }
+            return minIdx;
+        }
+        
+        // 移除坐标标注
+        function removeCoordinates(text) {
+            return text
+                .replace(/\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/g, '')
+                .replace(/<box>.*?<\/box>/g, '')
+                .replace(/<ref>.*?<\/ref>/g, '')
+                .replace(/<\|[^|]+\|>/g, '')
+                .trim();
+        }
+        
+        function parseMarkdownTables(markdown) {
+            // 检测是否是带坐标的 OCR 结果
+            const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(markdown);
+            
+            if (hasCoordinates) {
+                const tableData = parseCoordinateOCR(markdown);
+                if (tableData && tableData.rows.length > 0) {
+                    return renderCoordinateTable(tableData);
+                }
+            }
+            
+            // 回退到普通解析
+            const cleanMarkdown = removeCoordinates(markdown);
+            const sections = cleanMarkdown.split(/\n---\n/);
+            let html = '';
+            
+            sections.forEach((section, sectionIdx) => {
+                const trimmedSection = section.trim();
+                if (!trimmedSection) return;
+                
+                const fileMatch = trimmedSection.match(/^📄\s*(.+?)(?:\n|$)/);
+                if (fileMatch) {
+                    html += `<div class="file-section"><div class="file-header">📄 ${escapeHtml(fileMatch[1])}</div>`;
+                }
+                
+                const content = fileMatch ? trimmedSection.substring(fileMatch[0].length) : trimmedSection;
+                html += parseSection(content);
+                
+                if (fileMatch) {
+                    html += '</div>';
+                }
+                
+                if (sectionIdx < sections.length - 1) {
+                    html += '<hr class="section-divider">';
+                }
+            });
+            
+            return html || '<p style="color:var(--gray-600);">未检测到可预览的内容</p>';
+        }
+        
+        // 渲染基于坐标重建的表格（支持 rowspan）
+        function renderCoordinateTable(tableData) {
+            if (!tableData || tableData.rows.length === 0) return '';
+            
+            const colCount = tableData.colCount || tableData.rows[0].length;
+            
+            let html = '<div class="table-wrapper"><table class="coordinate-table">';
+            
+            tableData.rows.forEach((row, rowIdx) => {
+                const isHeader = rowIdx <= 3; // 前几行可能是表头
+                const tag = isHeader ? 'th' : 'td';
+                html += '<tr>';
+                
+                row.forEach(cell => {
+                    if (cell.skip) return;
+                    
+                    const rowspanAttr = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : '';
+                    const colspanAttr = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
+                    const cellClass = (cell.rowspan > 1 && !isHeader) ? ' class="rowspan-cell"' : '';
+                    html += `<${tag}${rowspanAttr}${colspanAttr}${cellClass}>${escapeHtml(cell.text || '')}</${tag}>`;
+                });
+                
+                html += '</tr>';
+            });
+            
+            html += '</table></div>';
+            return html;
+        }
+        
+        function parseSection(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            if (lines.length === 0) return '';
+            
+            // 先尝试检测 Markdown 表格
+            let html = '';
+            let inTable = false;
+            let tableRows = [];
+            let hasHeader = false;
+            let nonTableContent = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // Markdown 表格检测
+                const isTableRow = line.includes('|') && (line.match(/\|/g) || []).length >= 2;
+                const isSeparator = /^[\|\s\-:]+$/.test(line) && line.includes('-');
+                
+                if (isTableRow && !isSeparator) {
+                    if (nonTableContent.length > 0) {
+                        html += renderFormattedText(nonTableContent);
+                        nonTableContent = [];
+                    }
+                    if (!inTable) {
+                        inTable = true;
+                        tableRows = [];
+                        hasHeader = false;
+                    }
+                    tableRows.push(line);
+                } else if (isSeparator && inTable && tableRows.length === 1) {
+                    hasHeader = true;
+                } else {
+                    if (inTable && tableRows.length > 0) {
+                        html += renderMarkdownTable(tableRows, hasHeader);
+                        tableRows = [];
+                        inTable = false;
+                        hasHeader = false;
+                    }
+                    if (line && !isSeparator) {
+                        nonTableContent.push(line);
+                    }
+                }
+            }
+            
+            if (inTable && tableRows.length > 0) {
+                html += renderMarkdownTable(tableRows, hasHeader);
+            }
+            if (nonTableContent.length > 0) {
+                html += renderFormattedText(nonTableContent);
+            }
+            
+            // 如果没有 Markdown 表格，尝试智能解析整个内容为表格
+            if (!html.includes('<table>') && lines.length >= 2) {
+                const smartResult = smartParseTable(lines);
+                if (smartResult) {
+                    return smartResult;
+                }
+            }
+            
+            return html;
+        }
+        
+        // 智能解析 - 尝试将多行数据组织成表格
+        function smartParseTable(lines) {
+            if (lines.length < 2) return null;
+            
+            // 分析数据模式：检查是否有重复的键值对结构
+            // 例如: "性能指标", "20月累", "11200" 可能是 标题行 + 数据
+            
+            // 方案1: 检测是否是键值对列表
+            const kvPairs = [];
+            let isKVFormat = true;
+            
+            for (const line of lines) {
+                // 检查是否包含冒号分隔的键值对
+                if (line.includes(':') || line.includes('：')) {
+                    const parts = line.split(/[:：]/);
+                    if (parts.length >= 2) {
+                        kvPairs.push({ key: parts[0].trim(), value: parts.slice(1).join(':').trim() });
+                    } else {
+                        isKVFormat = false;
+                    }
+                } else {
+                    isKVFormat = false;
+                }
+            }
+            
+            if (isKVFormat && kvPairs.length >= 2) {
+                return renderKVTable(kvPairs);
+            }
+            
+            // 方案2: 尝试按位置/空格分析列结构
+            // 检查每行是否有相似的结构
+            const analyzedRows = lines.map(line => {
+                // 按多个空格分割
+                const cells = line.split(/\s{2,}/).filter(c => c.trim());
+                return cells.length > 1 ? cells : [line];
+            });
+            
+            const maxCols = Math.max(...analyzedRows.map(r => r.length));
+            const multiColCount = analyzedRows.filter(r => r.length > 1).length;
+            
+            // 如果超过30%的行有多列，认为是表格
+            if (maxCols > 1 && multiColCount >= lines.length * 0.3) {
+                return renderAnalyzedTable(analyzedRows, maxCols);
+            }
+            
+            // 方案3: 尝试将连续的数字行和文本行配对
+            const numericLines = [];
+            const textLines = [];
+            
+            for (const line of lines) {
+                if (/^[\d,.\s%￥$-]+$/.test(line.replace(/\s/g, ''))) {
+                    numericLines.push(line);
+                } else {
+                    textLines.push(line);
+                }
+            }
+            
+            // 如果文本行和数字行数量相近，可能是标题+数值的结构
+            if (textLines.length > 0 && numericLines.length > 0 && 
+                Math.abs(textLines.length - numericLines.length) <= 2) {
+                return renderPairedTable(textLines, numericLines);
+            }
+            
+            return null;
+        }
+        
+        // 渲染键值对表格
+        function renderKVTable(kvPairs) {
+            let html = '<div class="table-wrapper"><table class="kv-table">';
+            html += '<tr><th>项目</th><th>值</th></tr>';
+            kvPairs.forEach(kv => {
+                html += `<tr><td class="kv-key">${escapeHtml(kv.key)}</td><td>${escapeHtml(kv.value)}</td></tr>`;
+            });
+            html += '</table></div>';
+            return html;
+        }
+        
+        // 渲染分析后的表格
+        function renderAnalyzedTable(rows, maxCols) {
+            let html = '<div class="table-wrapper"><table>';
+            rows.forEach((row, idx) => {
+                const tag = idx === 0 ? 'th' : 'td';
+                html += '<tr>';
+                if (row.length === 1 && maxCols > 1) {
+                    html += `<td colspan="${maxCols}" class="merged-cell">${escapeHtml(row[0])}</td>`;
+                } else {
+                    row.forEach(cell => {
+                        html += `<${tag}>${escapeHtml(cell)}</${tag}>`;
+                    });
+                    for (let i = row.length; i < maxCols; i++) {
+                        html += `<${tag}></${tag}>`;
+                    }
+                }
+                html += '</tr>';
+            });
+            html += '</table></div>';
+            return html;
+        }
+        
+        // 渲染配对表格（标题行 + 数值行）
+        function renderPairedTable(textLines, numericLines) {
+            const len = Math.min(textLines.length, numericLines.length);
+            let html = '<div class="table-wrapper"><table class="paired-table">';
+            html += '<tr><th>项目</th><th>数值</th></tr>';
+            for (let i = 0; i < len; i++) {
+                html += `<tr><td>${escapeHtml(textLines[i])}</td><td class="numeric">${escapeHtml(numericLines[i])}</td></tr>`;
+            }
+            // 处理剩余行
+            for (let i = len; i < textLines.length; i++) {
+                html += `<tr><td colspan="2">${escapeHtml(textLines[i])}</td></tr>`;
+            }
+            for (let i = len; i < numericLines.length; i++) {
+                html += `<tr><td></td><td class="numeric">${escapeHtml(numericLines[i])}</td></tr>`;
+            }
+            html += '</table></div>';
+            return html;
+        }
+        
+        function renderFormattedText(lines) {
+            if (!lines || lines.length === 0) return '';
+            let html = '<div class="formatted-content">';
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                
+                // 检测标题
+                if (/^#+\s/.test(trimmed)) {
+                    const level = Math.min(trimmed.match(/^#+/)[0].length, 4);
+                    const text = trimmed.replace(/^#+\s*/, '');
+                    html += `<h${level} class="content-heading">${escapeHtml(text)}</h${level}>`;
+                }
+                // 检测列表项
+                else if (/^[-*•]\s/.test(trimmed)) {
+                    html += `<div class="list-item">• ${escapeHtml(trimmed.replace(/^[-*•]\s*/, ''))}</div>`;
+                }
+                // 检测数字列表
+                else if (/^\d+[.)]\s/.test(trimmed)) {
+                    const num = trimmed.match(/^\d+/)[0];
+                    const text = trimmed.replace(/^\d+[.)]\s*/, '');
+                    html += `<div class="list-item">${num}. ${escapeHtml(text)}</div>`;
+                }
+                // 普通段落
+                else {
+                    html += `<p class="text-line">${escapeHtml(trimmed)}</p>`;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+        
+        function renderNonTableContent(lines) {
+            return renderFormattedText(lines);
+        }
+        
+        function renderMarkdownTable(rows, hasHeader) {
+            if (rows.length === 0) return '';
+            
+            // 解析所有行，保留空单元格
+            const parsedRows = rows.map(row => {
+                // 去掉首尾的 |，然后按 | 分割
+                let trimmed = row.trim();
+                if (trimmed.startsWith('|')) trimmed = trimmed.substring(1);
+                if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+                return trimmed.split('|').map(c => c.trim());
+            });
+            
+            // 确定列数（取最大列数）
+            const colCount = Math.max(...parsedRows.map(r => r.length));
+            
+            let html = '<div class="table-wrapper"><table>';
+            parsedRows.forEach((cells, idx) => {
+                const isHeader = hasHeader && idx === 0;
+                const tag = isHeader ? 'th' : 'td';
+                html += '<tr>';
+                // 确保每行都有相同的列数
+                for (let i = 0; i < colCount; i++) {
+                    const cell = cells[i] || '';
+                    html += `<${tag}>${escapeHtml(cell)}</${tag}>`;
+                }
+                html += '</tr>';
+            });
+            html += '</table></div>';
+            return html;
+        }
+        
+        function renderTable(rows, hasHeader) {
+            return renderMarkdownTable(rows, hasHeader);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function updateProgress(percent) {
+            getSession().progress = percent;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = percent + '%';
+        }
+        
+        function getPrompt() {
+            if (currentPrompt === 'custom') {
+                return document.getElementById('customPrompt').value || PROMPTS.free;
+            }
+            return PROMPTS[currentPrompt];
+        }
+
+        startBtn.addEventListener('click', async () => {
+            const session = getSession();
+            if (session.files.length === 0) return;
+            
+            // 找出待处理的文件索引
+            const pendingIndexes = [];
+            session.fileStatuses.forEach((status, i) => {
+                if (status === 'pending') pendingIndexes.push(i);
+            });
+            
+            if (pendingIndexes.length === 0) {
+                showStatus('所有文件已处理完成', 'success');
+                return;
+            }
+            
+            startBtn.disabled = true;
+            session.status = 'processing';
+            document.getElementById('progressCard').style.display = 'block';
+            
+            // 显示批量统计
+            if (session.files.length > 1) {
+                document.getElementById('batchStats').style.display = 'flex';
+                const completed = session.fileStatuses.filter(s => s === 'completed').length;
+                document.getElementById('batchStats').innerHTML = `
+                    <div class="stat-item"><div class="stat-value" id="statTotal">${session.files.length}</div><div class="stat-label">总文件</div></div>
+                    <div class="stat-item"><div class="stat-value" id="statCompleted">${completed}</div><div class="stat-label">已完成</div></div>
+                    <div class="stat-item"><div class="stat-value" id="statProcessing">${pendingIndexes.length}</div><div class="stat-label">待处理</div></div>
+                `;
+            }
+            
+            await processIncremental(pendingIndexes);
+        });
+        
+        async function processIncremental(pendingIndexes) {
+            const session = getSession();
+            const targetMode = currentPrompt;
+            const totalFiles = session.files.length;
+            let newResults = [];
+            
+            // 重置进度条
+            updateProgress(0);
+            
+            showStatus('开始处理...', 'success');
+            
+            for (let i = 0; i < pendingIndexes.length; i++) {
+                const fileIndex = pendingIndexes[i];
+                const file = session.files[fileIndex];
+                
+                session.fileStatuses[fileIndex] = 'processing';
+                if (currentPrompt === targetMode) updateUI();
+                
+                try {
+                    // 上传文件
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const uploadRes = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+                    const uploadData = await uploadRes.json();
+                    
+                    if (uploadData.status !== 'success') throw new Error(uploadData.message);
+                    
+                    // 提取图片主色调（仅第一个文件且尚未提取过）
+                    if (i === 0 && !modeSessions[targetMode].headerColor) {
+                        try {
+                            const colorRes = await fetch(`${API_BASE}/api/extract-color`, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ file_path: uploadData.file_path })
+                            });
+                            const colorData = await colorRes.json();
+                            if (colorData.color) {
+                                modeSessions[targetMode].headerColor = colorData.color;
+                            }
+                        } catch (e) {
+                            console.log('颜色提取失败，使用默认颜色');
+                        }
+                    }
+                    
+                    // 开始 OCR
+                    const ocrRes = await fetch(`${API_BASE}/api/ocr`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            file_path: uploadData.file_path,
+                            file_type: uploadData.file_type,
+                            prompt: getPrompt()
+                        })
+                    });
+                    const ocrData = await ocrRes.json();
+                    
+                    if (ocrData.status !== 'running') throw new Error(ocrData.message);
+                    
+                    // 等待结果
+                    const result = await waitForResult(ocrData.task_id, targetMode, fileIndex, i, pendingIndexes.length);
+                    newResults.push({ filename: file.name, content: result });
+                    
+                    session.fileStatuses[fileIndex] = 'completed';
+                    
+                } catch (e) {
+                    session.fileStatuses[fileIndex] = 'error';
+                    console.error(`文件 ${file.name} 处理失败:`, e);
+                }
+                
+                if (currentPrompt === targetMode) {
+                    updateUI();
+                    const completed = session.fileStatuses.filter(s => s === 'completed').length;
+                    if (document.getElementById('statCompleted')) {
+                        document.getElementById('statCompleted').textContent = completed;
+                        document.getElementById('statProcessing').textContent = session.fileStatuses.filter(s => s === 'pending' || s === 'processing').length;
+                    }
+                }
+            }
+            
+            // 保存所有结果到 allResults
+            newResults.forEach(r => {
+                modeSessions[targetMode].allResults.push(r);
+            });
+            
+            // 取最后一个处理的结果作为预览/复制内容
+            let latestContent = '';
+            if (newResults.length > 0) {
+                latestContent = newResults[newResults.length - 1].content;
+            }
+            
+            // 将带坐标的结果转换为 Markdown 格式（用于预览和复制）
+            const markdownContent = convertToMarkdown(latestContent);
+            
+            // 生成时间戳：2512222350 格式
+            const getTimestamp = () => {
+                const now = new Date();
+                const y = String(now.getFullYear()).slice(-2);
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const d = String(now.getDate()).padStart(2, '0');
+                const h = String(now.getHours()).padStart(2, '0');
+                const min = String(now.getMinutes()).padStart(2, '0');
+                return `${y}${m}${d}${h}${min}`;
+            };
+            
+            // 下载 ZIP 包
+            const downloadFn = async () => {
+                const allResults = modeSessions[targetMode].allResults;
+                if (allResults.length === 0) {
+                    showStatus('没有可下载的结果', 'error');
+                    return;
+                }
+                
+                const zip = new JSZip();
+                const timestamp = getTimestamp();
+                
+                // 添加每个文件的单独结果
+                allResults.forEach((r, idx) => {
+                    const baseName = r.filename.replace(/\.[^.]+$/, '');
+                    const content = convertToMarkdown(r.content);
+                    zip.file(`${baseName}.md`, content);
+                });
+                
+                // 添加合并结果
+                if (allResults.length > 1) {
+                    const mergedContent = allResults.map(r => 
+                        `📄 ${r.filename}\n\n${convertToMarkdown(r.content)}`
+                    ).join('\n\n---\n\n');
+                    zip.file('merged.md', mergedContent);
+                }
+                
+                // 生成并下载 ZIP
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dpskocr-${timestamp}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+            
+            // 保存最新内容用于预览和复制
+            modeSessions[targetMode].result = { content: latestContent, downloadFn };
+            modeSessions[targetMode].markdownContent = markdownContent;
+            modeSessions[targetMode].status = 'completed';
+            modeSessions[targetMode].progress = 100;
+            updateModeIndicators();
+            
+            if (currentPrompt === targetMode) {
+                updateProgress(100);
+                document.getElementById('resultCard').style.display = 'block';
+                // 默认显示最新文件的 Markdown 格式
+                document.getElementById('resultContainer').textContent = markdownContent;
+                showResultButtons(downloadFn);
+                showStatus('✅ 识别完成', 'success');
+                startBtn.disabled = false;
+            }
+        }
+        
+        function waitForResult(taskId, targetMode, fileIndex, currentIndex, totalPending) {
+            return new Promise((resolve, reject) => {
+                const poll = setInterval(async () => {
+                    try {
+                        const res = await fetch(`${API_BASE}/api/result/${taskId}`);
+                        const data = await res.json();
+                        
+                        if (data.progress && currentPrompt === targetMode) {
+                            const baseProgress = (currentIndex / totalPending) * 100;
+                            const fileProgress = (data.progress / 100) * (100 / totalPending);
+                            updateProgress(Math.round(baseProgress + fileProgress));
+                        }
+                        
+                        if (data.status === 'success' || data.status === 'finished') {
+                            clearInterval(poll);
+                            resolve(data.content);
+                        } else if (data.status === 'error') {
+                            clearInterval(poll);
+                            reject(new Error(data.message));
+                        }
+                    } catch (e) {
+                        console.log('轮询错误', e);
+                    }
+                }, 1500);
+            });
+        }
+    </script>
+</body>
+</html>
