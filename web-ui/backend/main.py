@@ -1121,7 +1121,10 @@ app.mount("/results", StaticFiles(directory=str(RESULTS_DIR)), name="results")
 @app.get("/")
 async def serve_index():
     """提供 Web UI 首页"""
-    html_file = Path(__file__).parent / "static" / "index.html"
+    # 优先使用 index_unified.html
+    html_file = Path(__file__).parent / "static" / "index_unified.html"
+    if not html_file.exists():
+        html_file = Path(__file__).parent / "static" / "index.html"
     if html_file.exists():
         return FileResponse(html_file)
     return {"message": "DeepSeek OCR Web UI Backend", "status": "running"}

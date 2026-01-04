@@ -62,6 +62,8 @@ services:
       - ./web-ui/backend/uploads:/app/uploads
       - ./web-ui/backend/results:/app/results
       - ./web-ui/backend/logs:/app/logs
+      - ./web-ui/frontend:/app/static  # 挂载前端文件实现热更新
+      - ./web-ui/backend/main.py:/app/main.py  # 挂载后端代码
     environment:
       - VLLM_API_URL=http://deepseek-ocr:8000/v1/chat/completions
       - WORKSPACE_DIR=/workspace

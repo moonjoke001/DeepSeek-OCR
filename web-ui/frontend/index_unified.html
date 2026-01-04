@@ -84,20 +84,22 @@
                 </div>
             </div>
             
-            <!-- 自定义提示词输入框 -->
+            <!-- 自定义提示词区域 -->
             <div id="customPromptArea" style="display: none; margin-top: 16px;">
+                <!-- 提示词文本框（可编辑） -->
                 <textarea id="customPrompt" placeholder="输入自定义提示词，例如: <image>\nFree OCR." 
                     style="width:100%; padding:12px; border:2px solid var(--gray-200); border-radius:8px; 
                     font-family:'Courier New',monospace; font-size:14px; resize:vertical; min-height:80px;"></textarea>
+                <!-- 提示词示例（点击填充到文本框，同时切换独立会话） -->
                 <div style="margin-top:10px; padding:12px; background:#f9f9ff; border-radius:8px; border:1px solid var(--primary);">
                     <div style="font-weight:600; margin-bottom:8px; color:var(--primary);">📝 提示词示例 (点击使用):</div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                        <button class="prompt-example" data-prompt="<image>\nFree OCR.">基础 OCR</button>
-                        <button class="prompt-example" data-prompt="<image>\n<|grounding|>Convert the document to markdown.">文档转 Markdown</button>
-                        <button class="prompt-example" data-prompt="<image>\n<|grounding|>OCR this image.">图片 OCR (带坐标)</button>
-                        <button class="prompt-example" data-prompt="<image>\nParse the figure.">图表解析</button>
-                        <button class="prompt-example" data-prompt="<image>\nDescribe this image in detail.">详细描述</button>
-                        <button class="prompt-example" data-prompt="<image>\nLocate <|ref|>在此输入要定位的文字<|/ref|> in the image.">📍 定位识别</button>
+                        <button class="prompt-example" data-submode="custom_free" data-prompt="<image>\nFree OCR.">基础 OCR</button>
+                        <button class="prompt-example" data-submode="custom_markdown" data-prompt="<image>\n<|grounding|>Convert the document to markdown.">文档转 Markdown</button>
+                        <button class="prompt-example" data-submode="custom_coord" data-prompt="<image>\n<|grounding|>OCR this image.">图片 OCR (带坐标)</button>
+                        <button class="prompt-example" data-submode="custom_figure" data-prompt="<image>\n<|grounding|>OCR this image.">图表解析</button>
+                        <button class="prompt-example" data-submode="custom_describe" data-prompt="<image>\nDescribe this image in detail.">详细描述</button>
+                        <button class="prompt-example" data-submode="custom_locate" data-prompt="<image>\nLocate <|ref|>关键词<|/ref|> in the image.">🎯 定位识别</button>
                     </div>
                 </div>
             </div>
@@ -140,28 +142,24 @@
             
             <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg" style="display:none">
             
-            <!-- 文件列表 -->
+            <!-- 文件列表（整合进度显示） -->
             <div id="fileList" class="file-list"></div>
             
-            <!-- 状态消息 -->
-            <div id="statusMessage" class="status-message"></div>
-            
-            <!-- 开始按钮 -->
-            <button id="startBtn" class="btn-primary" disabled>
-                <span id="btnText">选择文件后开始识别</span>
-            </button>
-        </div>
-
-        <!-- 进度区域 -->
-        <div class="card" id="progressCard" style="display: none;">
-            <div class="section-title">处理进度</div>
-            <div class="progress-wrapper">
+            <!-- 内嵌进度条（在文件列表下方） -->
+            <div id="inlineProgress" class="inline-progress" style="display: none;">
                 <div class="progress-bar">
                     <div id="progressFill" class="progress-fill"></div>
                 </div>
                 <span id="progressText" class="progress-text">0%</span>
             </div>
-            <div id="batchStats" class="batch-stats" style="display: none;"></div>
+            
+            <!-- 状态消息 -->
+            <div id="statusMessage" class="status-message"></div>
+            
+            <!-- 开始按钮（动态状态） -->
+            <button id="startBtn" class="btn-primary btn-state-idle" disabled>
+                <span id="btnText">选择文件后开始识别</span>
+            </button>
         </div>
         
         <!-- 结果区域 -->
@@ -170,12 +168,41 @@
                 识别结果
                 <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
                     <button id="previewTableBtn" class="btn-preview" style="display: none;" onclick="toggleTablePreview()">📊 表格预览</button>
-                    <button id="copyExcelBtn" class="btn-copy-excel" style="display: none;" onclick="copyAsExcel()">📋 复制表格</button>
                     <button id="downloadBtn" class="btn-download" style="display: none;">📥 下载</button>
                 </div>
             </div>
-            <div id="resultContainer" class="result-container"></div>
-            <div id="tablePreviewContainer" class="table-preview-container" style="display: none;"></div>
+            <!-- 结果预览区域（带悬浮导航） -->
+            <div id="resultWrapper" class="result-wrapper" style="display: none;">
+                <!-- 右上角工具栏：索引 + 复制图标 -->
+                <div class="result-toolbar">
+                    <span id="resultIndexText" class="result-index">1/1</span>
+                    <button id="copyTextBtn" class="copy-icon" onclick="copyCurrentText()" title="复制文本">
+                        <svg id="copyIconSvg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        <svg id="copyCheckSvg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <!-- 左侧箭头 -->
+                <button id="prevResultBtn" class="nav-arrow nav-arrow-left" onclick="navigateResult(-1)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <!-- 右侧箭头 -->
+                <button id="nextResultBtn" class="nav-arrow nav-arrow-right" onclick="navigateResult(1)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+                <!-- 结果内容 -->
+                <div id="resultContainer" class="result-container"></div>
+                <!-- 表格预览内容（表格模式时显示） -->
+                <div id="tablePreviewContainer" class="table-preview-container" style="display: none;"></div>
+            </div>
         </div>
         
         <div class="footer">Powered by DeepSeek-OCR + vLLM</div>
@@ -469,6 +496,65 @@
         .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         
+        /* 按钮状态样式 */
+        .btn-primary.btn-state-idle {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        }
+        
+        .btn-primary.btn-state-processing {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .btn-primary.btn-state-completed {
+            background: var(--success);
+            cursor: pointer;
+        }
+        
+        .btn-primary.btn-state-completed:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40,167,69,0.4);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* 内嵌进度条样式 */
+        .inline-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: var(--gray-100);
+            border-radius: 10px;
+        }
+        
+        .inline-progress .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .inline-progress .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            transition: width 0.3s;
+            border-radius: 4px;
+        }
+        
+        .inline-progress .progress-text {
+            font-weight: 600;
+            font-size: 13px;
+            min-width: 40px;
+            color: var(--primary);
+        }
+        
         .btn-download {
             padding: 6px 14px;
             background: var(--success);
@@ -506,14 +592,57 @@
         
         .btn-copy-excel:hover { background: #138496; }
         
+        /* 表格导航栏样式 */
+        .table-nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 12px;
+            margin-bottom: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .table-nav-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 50%;
+            background: var(--gray-200);
+            color: var(--gray-600);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .table-nav-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .table-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .table-nav-index {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--gray-600);
+            min-width: 50px;
+            text-align: center;
+        }
+        
         .table-preview-container {
-            max-height: 600px;
+            max-height: 500px;
             overflow: auto;
-            padding: 24px;
-            background: #f8fafc;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            margin-top: 12px;
+            padding: 48px 60px 16px 60px;
+            background: var(--gray-100);
+            border-radius: 8px;
         }
         
         .table-preview-container .file-section {
@@ -543,9 +672,8 @@
         .table-preview-container .smart-table-wrapper {
             overflow-x: auto;
             margin: 16px 0;
-            border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
+            border-radius: 0;
+            border: 2px solid #000000;
         }
         
         .table-preview-container table {
@@ -557,36 +685,37 @@
         
         .table-preview-container th,
         .table-preview-container td {
-            border: 1px solid #e2e8f0;
+            border: 1px solid #000000;
             padding: 10px 14px;
             text-align: left;
             vertical-align: middle;
+            color: #000000;
+            background: #ffffff;
         }
         
         .table-preview-container th {
-            background: #0d7c66;
-            color: #ffffff;
+            background: #ffffff;
+            color: #000000;
             font-weight: 600;
             font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            text-transform: none;
+            letter-spacing: normal;
             white-space: nowrap;
         }
         
         .table-preview-container tr:nth-child(even) td {
-            background: #f8fafc;
+            background: #ffffff;
         }
         
         .table-preview-container tr:hover td {
-            background: #eef2ff;
+            background: #f0f0f0;
         }
         
         .table-preview-container .merged-cell {
-            background: #f0f9ff !important;
+            background: #ffffff !important;
             font-weight: 600;
-            color: #0369a1;
+            color: #000000;
             text-align: center;
-            border-left: 3px solid #0ea5e9;
         }
         
         .table-preview-container .formatted-content {
@@ -649,38 +778,79 @@
             color: #059669;
         }
         
+        /* 通用坐标表格样式 - 黑框、黑字、白色背景 */
         .table-preview-container .coordinate-table {
-            border: none;
-            border-radius: 10px;
-            overflow: hidden;
+            border: 2px solid #000000 !important;
+            border-radius: 0 !important;
+            overflow: visible;
+            border-collapse: collapse;
+            background: #ffffff !important;
         }
         
-        .table-preview-container .coordinate-table th {
-            background: #0d7c66;
-            color: #ffffff;
+        .table-preview-container .coordinate-table thead th {
+            background: #ffffff !important;
+            color: #000000 !important;
             font-weight: 600;
-            font-size: 12px;
-            padding: 12px 14px;
-            border: 1px solid #0a6b58;
+            font-size: 13px;
+            padding: 10px 12px;
+            border: 1px solid #000000 !important;
             text-shadow: none;
+            text-align: center;
+            vertical-align: middle;
         }
         
         .table-preview-container .coordinate-table td {
             white-space: nowrap;
-            padding: 10px 14px;
-            color: #334155;
+            padding: 8px 12px;
+            color: #000000 !important;
+            border: 1px solid #000000 !important;
+            font-size: 13px;
+            background: #ffffff !important;
         }
         
-        .table-preview-container .coordinate-table tr:nth-child(odd) td {
-            background: #ffffff;
+        .table-preview-container .coordinate-table tbody tr:nth-child(odd) td {
+            background: #ffffff !important;
         }
         
-        .table-preview-container .coordinate-table tr:nth-child(even) td {
-            background: #f8fafc;
+        .table-preview-container .coordinate-table tbody tr:nth-child(even) td {
+            background: #ffffff !important;
         }
         
-        .table-preview-container .coordinate-table tr:hover td {
-            background: #e0f2fe;
+        .table-preview-container .coordinate-table tbody tr:hover td {
+            background: #f5f5f5 !important;
+        }
+        
+        /* 表单类型表格样式 */
+        .table-preview-container .form-table {
+            border: 2px solid #333;
+            border-collapse: collapse;
+            width: 100%;
+            background: #fff;
+        }
+        
+        .table-preview-container .form-table td {
+            border: 1px solid #333;
+            padding: 8px 12px;
+            vertical-align: middle;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .table-preview-container .form-table .form-label {
+            background: #f8f9fa;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+        
+        .table-preview-container .form-table .form-value {
+            background: #fff;
+            color: #333;
+        }
+        
+        .table-preview-container .form-table tr:hover td {
+            background: #f0f4ff !important;
         }
         
         .table-preview-container .rowspan-cell {
@@ -692,6 +862,116 @@
             color: #0369a1;
         }
         
+        .table-preview-container .colspan-header {
+            text-align: center;
+            font-weight: 700;
+            background: #0a6b58 !important;
+            color: #ffffff;
+            letter-spacing: 1px;
+        }
+        
+        .table-preview-container .service-cell {
+            white-space: normal;
+            max-width: 180px;
+            line-height: 1.4;
+        }
+        
+        .table-preview-container .header-cell {
+            white-space: nowrap;
+        }
+        
+        /* SIT 性能测试表专用样式 - 黑框、黑字、白色背景 */
+        .table-preview-container .sit-table {
+            border: 2px solid #000000;
+            border-radius: 0;
+            overflow: hidden;
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        .table-preview-container .sit-table thead th {
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 10px 8px;
+            border: 1px solid #000000;
+            text-align: center;
+            vertical-align: middle;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+        }
+        
+        .table-preview-container .sit-table .header-row-1 th {
+            background: #ffffff !important;
+        }
+        
+        .table-preview-container .sit-table .header-row-2 th {
+            background: #ffffff !important;
+            font-size: 11px;
+        }
+        
+        .table-preview-container .sit-table .colspan-header {
+            background: #f5f5f5 !important;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        .table-preview-container .sit-table td {
+            padding: 8px 6px;
+            color: #000000;
+            border: 1px solid #000000;
+            font-size: 12px;
+            text-align: center;
+            background: #ffffff;
+        }
+        
+        .table-preview-container .sit-table .col-concurrency {
+            width: 70px;
+            font-weight: 600;
+            color: #000000;
+            background: #ffffff !important;
+        }
+        
+        .table-preview-container .sit-table .col-version {
+            width: 50px;
+            color: #000000;
+            font-weight: 500;
+        }
+        
+        .table-preview-container .sit-table .col-service {
+            width: 160px;
+            text-align: left;
+            white-space: normal;
+            line-height: 1.3;
+            color: #000000;
+        }
+        
+        .table-preview-container .sit-table .col-numeric {
+            width: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            text-align: right;
+            padding-right: 10px;
+        }
+        
+        .table-preview-container .sit-table tbody tr:nth-child(odd) td {
+            background: #ffffff;
+        }
+        
+        .table-preview-container .sit-table tbody tr:nth-child(even) td {
+            background: #ffffff;
+        }
+        
+        .table-preview-container .sit-table tbody tr:hover td {
+            background: #f0f0f0;
+        }
+        
+        .table-preview-container .sit-table tbody tr:nth-child(odd) .col-concurrency,
+        .table-preview-container .sit-table tbody tr:nth-child(even) .col-concurrency {
+            background: #ffffff !important;
+        }
+
         /* 进度条 */
         .progress-wrapper { display: flex; align-items: center; gap: 12px; }
         .progress-bar { flex: 1; height: 24px; background: var(--gray-200); border-radius: 12px; overflow: hidden; }
@@ -719,6 +999,122 @@
             white-space: pre-wrap;
         }
         
+        /* Markdown 渲染样式 */
+        .result-container.markdown-rendered {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            white-space: normal;
+            background: white;
+            border: 1px solid var(--gray-200);
+        }
+        
+        .result-container.markdown-rendered h1 {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0 0 16px 0;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .result-container.markdown-rendered h2 {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+            margin: 20px 0 12px 0;
+        }
+        
+        .result-container.markdown-rendered h3 {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #444;
+            margin: 16px 0 10px 0;
+        }
+        
+        .result-container.markdown-rendered p {
+            margin: 12px 0;
+            line-height: 1.8;
+            color: #333;
+            text-align: justify;
+        }
+        
+        .result-container.markdown-rendered strong {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        
+        .result-container.markdown-rendered em {
+            font-style: italic;
+            color: #555;
+        }
+        
+        .result-container.markdown-rendered ul,
+        .result-container.markdown-rendered ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+        
+        .result-container.markdown-rendered li {
+            margin: 8px 0;
+            line-height: 1.7;
+            color: #333;
+        }
+        
+        .result-container.markdown-rendered code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+        
+        .result-container.markdown-rendered pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        
+        .result-container.markdown-rendered pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+        
+        .result-container.markdown-rendered blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 16px;
+            margin: 16px 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .result-container.markdown-rendered hr {
+            border: none;
+            border-top: 1px solid var(--gray-200);
+            margin: 20px 0;
+        }
+        
+        .result-container.markdown-rendered table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        
+        .result-container.markdown-rendered th,
+        .result-container.markdown-rendered td {
+            border: 1px solid var(--gray-200);
+            padding: 10px 12px;
+            text-align: left;
+        }
+        
+        .result-container.markdown-rendered th {
+            background: var(--gray-100);
+            font-weight: 600;
+        }
+        
         /* 状态消息 */
         .status-message {
             padding: 12px 16px;
@@ -732,20 +1128,137 @@
         
         .footer { text-align: center; color: white; margin-top: 30px; opacity: 0.8; }
         
+        /* 提示词示例按钮 */
         .prompt-example {
-            padding: 6px 12px;
+            padding: 8px 14px;
             background: white;
             color: var(--primary);
-            border: 1px solid var(--primary);
-            border-radius: 6px;
-            font-size: 12px;
+            border: 2px solid var(--primary);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         
         .prompt-example:hover {
             background: var(--primary);
             color: white;
+        }
+        
+        .prompt-example.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: var(--primary-dark);
+        }
+        
+        .prompt-example.has-result::after {
+            content: '●';
+            color: #28a745;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+        
+        .prompt-example.active.has-result::after {
+            color: #90EE90;
+        }
+        
+        /* 结果预览区域包装器 */
+        .result-wrapper {
+            position: relative;
+            min-height: 200px;
+        }
+        
+        /* 右上角工具栏 */
+        .result-toolbar {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-index {
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* 复制图标按钮 */
+        .copy-icon {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .copy-icon:hover {
+            background: rgba(0, 0, 0, 0.08);
+            color: #333;
+        }
+        
+        .copy-icon.copied {
+            color: #28a745;
+        }
+        
+        /* 悬浮导航箭头 */
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .nav-arrow-left {
+            left: 12px;
+        }
+        
+        .nav-arrow-right {
+            right: 12px;
+        }
+        
+        .nav-arrow:hover:not(:disabled) {
+            background: rgba(0, 0, 0, 0.6);
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        .nav-arrow:disabled {
+            background: rgba(0, 0, 0, 0.15);
+            color: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+        }
+        
+        .nav-arrow svg {
+            stroke-width: 2.5;
+        }
+        
+        /* 结果容器内边距调整 */
+        .result-wrapper .result-container {
+            padding: 48px 60px 16px 60px;
         }
     </style>
 
@@ -753,24 +1266,68 @@
         const API_BASE = window.location.origin;
         const PROMPTS = {
             free: '<image>\nFree OCR.',
-            markdown: '<image>\n<|grounding|>Convert the document to markdown.',
+            markdown: '<image>\nOCR and format as Markdown with # headings, **bold**, and numbered lists.',
             table: '<image>\n<|grounding|>OCR this image.',
             figure: '<image>\nParse the figure.',
             custom: ''
         };
         
         let currentPrompt = 'free';
+        let currentCustomSubmode = 'custom_free'; // 当前自定义子模式
         
-        // 每个模式独立的完整会话状态
+        // 自定义子模式的提示词映射
+        const CUSTOM_SUBMODE_PROMPTS = {
+            custom_free: '<image>\nFree OCR.',
+            custom_markdown: '<image>\n<|grounding|>Convert the document to markdown.',
+            custom_coord: '<image>\n<|grounding|>OCR this image.',
+            custom_figure: '<image>\n<|grounding|>OCR this image.',
+            custom_describe: '<image>\nDescribe this image in detail.',
+            custom_locate: '<image>\nLocate <|ref|>关键词<|/ref|> in the image.',
+            custom_manual: ''
+        };
+        
+        // 每个模式独立的完整会话状态（包括自定义子模式）
         const modeSessions = {
             free: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
             markdown: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
             table: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
             figure: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
-            custom: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] }
+            // 自定义子模式各自独立会话
+            custom_free: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom_markdown: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom_coord: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom_figure: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom_describe: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom_locate: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] },
+            custom_manual: { files: [], result: null, progress: 0, status: 'idle', batchId: null, previewIndex: 0, fileStatuses: [], headerColor: null, allResults: [] }
         };
         
-        function getSession() { return modeSessions[currentPrompt]; }
+        // 获取当前会话（自定义模式时返回子模式会话）
+        function getSession() { 
+            if (currentPrompt === 'custom') {
+                return modeSessions[currentCustomSubmode];
+            }
+            return modeSessions[currentPrompt]; 
+        }
+        
+        // 获取当前实际使用的模式 key
+        function getCurrentModeKey() {
+            if (currentPrompt === 'custom') {
+                return currentCustomSubmode;
+            }
+            return currentPrompt;
+        }
+        
+        // 判断当前模式是否需要保留坐标（用于 custom_coord 子模式）
+        function shouldPreserveCoordinates() {
+            return currentPrompt === 'custom' && currentCustomSubmode === 'custom_coord';
+        }
+        
+        // 判断当前模式是否需要显示表格预览（table 模式或 custom_figure 子模式）
+        function shouldShowTablePreview() {
+            return currentPrompt === 'table' || 
+                   (currentPrompt === 'custom' && currentCustomSubmode === 'custom_figure');
+        }
         
         function switchTab(tab) {
             document.getElementById('tabUpload').classList.toggle('active', tab === 'upload');
@@ -780,9 +1337,27 @@
         }
         
         function updateModeIndicators() {
+            // 更新主模式标签状态
             document.querySelectorAll('.mode-tab').forEach(tab => {
                 const mode = tab.dataset.prompt;
-                tab.classList.toggle('has-result', modeSessions[mode].result !== null);
+                if (mode === 'custom') {
+                    // 自定义模式：检查任意子模式是否有结果
+                    const hasAnyResult = Object.keys(modeSessions)
+                        .filter(k => k.startsWith('custom_'))
+                        .some(k => modeSessions[k].result !== null);
+                    tab.classList.toggle('has-result', hasAnyResult);
+                } else {
+                    tab.classList.toggle('has-result', modeSessions[mode].result !== null);
+                }
+            });
+            
+            // 更新提示词示例按钮状态
+            document.querySelectorAll('.prompt-example').forEach(btn => {
+                const submode = btn.dataset.submode;
+                if (modeSessions[submode]) {
+                    btn.classList.toggle('has-result', modeSessions[submode].result !== null);
+                    btn.classList.toggle('active', currentCustomSubmode === submode);
+                }
             });
         }
         
@@ -790,27 +1365,43 @@
             const session = getSession();
             updateUI();
             
+            // 更新内嵌进度条
+            const inlineProgress = document.getElementById('inlineProgress');
             if (session.status === 'processing') {
-                document.getElementById('progressCard').style.display = 'block';
+                inlineProgress.style.display = 'flex';
                 document.getElementById('progressFill').style.width = session.progress + '%';
                 document.getElementById('progressText').textContent = session.progress + '%';
+            } else if (session.status === 'completed' && session.files.length > 0) {
+                inlineProgress.style.display = 'flex';
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('progressText').textContent = '100%';
             } else {
-                document.getElementById('progressCard').style.display = 'none';
-                document.getElementById('batchStats').style.display = 'none';
+                inlineProgress.style.display = 'none';
             }
             
+            // 根据当前模式的结果状态显示/隐藏结果区域
             if (session.result) {
                 document.getElementById('resultCard').style.display = 'block';
-                // 显示 Markdown 格式内容
-                document.getElementById('resultContainer').textContent = session.markdownContent || session.result.content;
+                // 显示 Markdown 格式内容（根据模式决定是否渲染）
+                const resultContainer = document.getElementById('resultContainer');
+                displayResultContent(session.markdownContent || session.result.content, resultContainer);
                 showResultButtons(session.result.downloadFn);
-                // 重置预览按钮状态
-                document.getElementById('previewTableBtn').classList.remove('active');
-                document.getElementById('previewTableBtn').textContent = '📊 表格预览';
-                document.getElementById('tablePreviewContainer').style.display = 'none';
-                document.getElementById('resultContainer').style.display = 'block';
+                // 对于非表格预览模式，重置预览按钮状态
+                if (!shouldShowTablePreview()) {
+                    document.getElementById('previewTableBtn').classList.remove('active');
+                    document.getElementById('previewTableBtn').textContent = '📊 表格预览';
+                    document.getElementById('tablePreviewContainer').style.display = 'none';
+                    document.getElementById('resultContainer').style.display = 'block';
+                }
+                // 更新结果导航栏
+                if (session.allResults && session.allResults.length > 0) {
+                    updateResultNavigation();
+                }
             } else {
+                // 当前模式没有结果，隐藏结果区域
                 document.getElementById('resultCard').style.display = 'none';
+                document.getElementById('resultWrapper').style.display = 'none';
+                document.getElementById('tablePreviewContainer').style.display = 'none';
             }
             
             if (session.files.length > 0) {
@@ -834,14 +1425,31 @@
                 this.classList.add('active');
                 currentPrompt = this.dataset.prompt;
                 document.getElementById('customPromptArea').style.display = currentPrompt === 'custom' ? 'block' : 'none';
+                // 切换到自定义模式时，填充当前子模式的提示词到文本框
+                if (currentPrompt === 'custom') {
+                    const promptText = CUSTOM_SUBMODE_PROMPTS[currentCustomSubmode] || '<image>\nFree OCR.';
+                    document.getElementById('customPrompt').value = promptText;
+                    updateModeIndicators(); // 更新按钮选中状态
+                }
                 restoreModeState();
             });
         });
         
-        // 提示词示例点击
+        // 提示词示例按钮点击（切换独立会话 + 填充文本框）
         document.querySelectorAll('.prompt-example').forEach(btn => {
             btn.addEventListener('click', function() {
+                // 更新选中状态
+                document.querySelectorAll('.prompt-example').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // 切换子模式
+                currentCustomSubmode = this.dataset.submode;
+                
+                // 填充提示词到文本框
                 document.getElementById('customPrompt').value = this.dataset.prompt;
+                
+                // 恢复该子模式的状态
+                restoreModeState();
             });
         });
 
@@ -935,6 +1543,9 @@
         function updateUI() {
             const session = getSession();
             const fileList = document.getElementById('fileList');
+            const startBtn = document.getElementById('startBtn');
+            const btnText = document.getElementById('btnText');
+            const inlineProgress = document.getElementById('inlineProgress');
             
             // 初始化文件状态数组
             while (session.fileStatuses.length < session.files.length) {
@@ -944,16 +1555,28 @@
             const count = session.files.length;
             const completedCount = session.fileStatuses.filter(s => s === 'completed').length;
             const pendingCount = session.fileStatuses.filter(s => s === 'pending').length;
+            const processingCount = session.fileStatuses.filter(s => s === 'processing').length;
+            const isProcessing = session.status === 'processing';
+            const allCompleted = count > 0 && completedCount === count;
             
-            // 生成文件列表 HTML
+            // 生成文件列表 HTML（带状态统计）
             let html = '';
             if (count > 0) {
+                // 状态文本
+                let statusText = `${count} 个文件`;
+                if (completedCount > 0 || pendingCount > 0) {
+                    statusText += ` · ${completedCount} 已完成`;
+                    if (pendingCount > 0 && !allCompleted) {
+                        statusText += ` · ${pendingCount} 待处理`;
+                    }
+                }
+                
                 html = `
                     <div class="file-list-header">
-                        <span class="file-count">共 ${count} 个文件 (${completedCount} 已完成, ${pendingCount} 待处理)</span>
+                        <span class="file-count">文件列表 <span style="color:var(--gray-600);font-weight:400;">${statusText}</span></span>
                         <div>
                             <button class="btn-toggle" onclick="toggleFileList()">展开/收起</button>
-                            <button class="btn-clear-all" onclick="clearAllFiles()">清空全部</button>
+                            <button class="btn-clear-all" onclick="clearAllFiles()">清空</button>
                         </div>
                     </div>
                     <div class="file-grid">
@@ -975,9 +1598,40 @@
             fileCountBadge.style.display = count > 0 ? 'inline' : 'none';
             fileCountBadge.textContent = `${count} 个文件`;
             
-            startBtn.disabled = count === 0;
-            btnText.textContent = count === 0 ? '选择文件后开始识别' : 
-                (count > 1 ? `开始批量识别 (${count} 个文件)` : '开始识别');
+            // 更新按钮状态
+            startBtn.className = 'btn-primary';
+            
+            if (count === 0) {
+                // 无文件
+                startBtn.disabled = true;
+                startBtn.classList.add('btn-state-idle');
+                btnText.textContent = '选择文件后开始识别';
+                inlineProgress.style.display = 'none';
+            } else if (isProcessing) {
+                // 识别中
+                startBtn.disabled = true;
+                startBtn.classList.add('btn-state-processing');
+                btnText.textContent = `识别中... (${completedCount}/${count})`;
+                inlineProgress.style.display = 'flex';
+            } else if (allCompleted) {
+                // 全部完成
+                startBtn.disabled = false;
+                startBtn.classList.add('btn-state-completed');
+                btnText.textContent = '✅ 识别完成';
+                inlineProgress.style.display = 'flex';
+            } else if (pendingCount < count && pendingCount > 0) {
+                // 部分完成
+                startBtn.disabled = false;
+                startBtn.classList.add('btn-state-idle');
+                btnText.textContent = `继续识别 (${pendingCount} 个待处理)`;
+                inlineProgress.style.display = completedCount > 0 ? 'flex' : 'none';
+            } else {
+                // 待识别
+                startBtn.disabled = false;
+                startBtn.classList.add('btn-state-idle');
+                btnText.textContent = count > 1 ? `开始批量识别 (${count} 个文件)` : '开始识别';
+                inlineProgress.style.display = 'none';
+            }
             
             if (count === 0) {
                 document.getElementById('previewContainer').innerHTML = `
@@ -1006,8 +1660,13 @@
             session.status = 'idle';
             session.headerColor = null;
             session.previewIndex = 0;
+            session.currentResultIndex = 0;
             document.getElementById('resultCard').style.display = 'none';
-            document.getElementById('progressCard').style.display = 'none';
+            document.getElementById('inlineProgress').style.display = 'none';
+            document.getElementById('statusMessage').style.display = 'none';
+            document.getElementById('statusMessage').className = 'status-message';
+            const resultNavBar = document.getElementById('resultNavBar');
+            if (resultNavBar) resultNavBar.style.display = 'none';
             updateModeIndicators();
             updateUI();
         }
@@ -1025,8 +1684,10 @@
                 session.progress = 0;
                 session.status = 'idle';
                 session.headerColor = null;
+                session.currentResultIndex = 0;
                 document.getElementById('resultCard').style.display = 'none';
-                document.getElementById('progressCard').style.display = 'none';
+                document.getElementById('inlineProgress').style.display = 'none';
+                document.getElementById('resultWrapper').style.display = 'none';
                 updateModeIndicators();
             }
             
@@ -1046,20 +1707,272 @@
         function showResultButtons(downloadFn) {
             const downloadBtn = document.getElementById('downloadBtn');
             const previewBtn = document.getElementById('previewTableBtn');
-            const copyExcelBtn = document.getElementById('copyExcelBtn');
+            const resultWrapper = document.getElementById('resultWrapper');
+            const tablePreviewContainer = document.getElementById('tablePreviewContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            const copyTextBtn = document.getElementById('copyTextBtn');
+            const session = getSession();
             
+            // 下载按钮始终显示
             downloadBtn.style.display = 'inline';
             downloadBtn.onclick = downloadFn;
             
-            // 所有模式都显示表格预览按钮（结果可能包含表格）
-            previewBtn.style.display = 'inline';
-            previewBtn.classList.remove('active');
-            previewBtn.textContent = '📊 表格预览';
-            document.getElementById('tablePreviewContainer').style.display = 'none';
-            document.getElementById('resultContainer').style.display = 'block';
+            // 根据模式显示不同按钮
+            if (shouldShowTablePreview()) {
+                // 表格识别模式 或 自定义图表解析：显示表格预览按钮
+                previewBtn.style.display = 'inline';
+                
+                // 更新复制按钮提示为"复制表格"
+                copyTextBtn.title = '复制表格';
+                
+                // 使用和基础 OCR 一样的导航布局
+                if (session.allResults && session.allResults.length > 0) {
+                    resultWrapper.style.display = 'block';
+                    session.currentResultIndex = session.currentResultIndex || 0;
+                    updateResultNavigation();
+                    
+                    // 渲染当前文件的表格预览
+                    renderCurrentTablePreview();
+                }
+                
+                // 直接显示表格预览，设置按钮状态
+                previewBtn.classList.add('active');
+                previewBtn.textContent = '📝 Markdown';
+                tablePreviewContainer.style.display = 'block';
+                resultContainer.style.display = 'none';
+            } else {
+                // 基础 OCR / Markdown 模式：隐藏表格相关按钮，显示导航
+                previewBtn.style.display = 'none';
+                tablePreviewContainer.style.display = 'none';
+                resultContainer.style.display = 'block';
+                
+                // 恢复复制按钮提示为"复制文本"
+                copyTextBtn.title = '复制文本';
+                
+                if (session.allResults && session.allResults.length > 0) {
+                    resultWrapper.style.display = 'block';
+                    session.currentResultIndex = session.currentResultIndex || 0;
+                    updateResultNavigation();
+                } else {
+                    resultWrapper.style.display = 'none';
+                }
+            }
+        }
+        
+        // 渲染当前文件的表格预览
+        function renderCurrentTablePreview() {
+            const session = getSession();
+            const tablePreviewContainer = document.getElementById('tablePreviewContainer');
             
-            // 显示复制到Excel按钮
-            copyExcelBtn.style.display = 'inline';
+            if (!session.allResults || session.allResults.length === 0) {
+                tablePreviewContainer.innerHTML = '<p>暂无识别结果</p>';
+                return;
+            }
+            
+            const currentIndex = session.currentResultIndex || 0;
+            const result = session.allResults[currentIndex];
+            const content = result.content;
+            
+            // 检测是否是带坐标的 OCR 结果
+            const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(content);
+            
+            let tableHtml = '';
+            
+            if (hasCoordinates) {
+                const tableData = parseCoordinateOCR(content);
+                if (tableData && tableData.rows.length > 0) {
+                    tableHtml = renderCoordinateTable(tableData);
+                } else {
+                    tableHtml = '<p>未检测到表格数据</p>';
+                }
+            } else {
+                tableHtml = parseMarkdownTables(content);
+            }
+            
+            tablePreviewContainer.innerHTML = tableHtml;
+        }
+        
+        // 更新结果导航显示
+        function updateResultNavigation() {
+            const session = getSession();
+            const allResults = session.allResults || [];
+            const total = allResults.length;
+            const current = (session.currentResultIndex || 0) + 1;
+            
+            document.getElementById('resultIndexText').textContent = `${current}/${total}`;
+            document.getElementById('prevResultBtn').disabled = current <= 1;
+            document.getElementById('nextResultBtn').disabled = current >= total;
+            
+            // 单文件时隐藏箭头，多文件时显示
+            const prevBtn = document.getElementById('prevResultBtn');
+            const nextBtn = document.getElementById('nextResultBtn');
+            if (total <= 1) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+            } else {
+                prevBtn.style.display = 'flex';
+                nextBtn.style.display = 'flex';
+            }
+        }
+        
+        // 导航切换结果
+        function navigateResult(direction) {
+            const session = getSession();
+            const allResults = session.allResults || [];
+            const total = allResults.length;
+            
+            if (total === 0) return;
+            
+            let newIndex = (session.currentResultIndex || 0) + direction;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= total) newIndex = total - 1;
+            
+            session.currentResultIndex = newIndex;
+            
+            // 更新显示内容
+            const currentResult = allResults[newIndex];
+            if (currentResult) {
+                const markdownContent = convertToMarkdown(currentResult.content, shouldPreserveCoordinates());
+                const resultContainer = document.getElementById('resultContainer');
+                displayResultContent(markdownContent, resultContainer);
+                session.markdownContent = markdownContent;
+                
+                // 如果是表格模式或自定义图表解析，始终更新表格预览
+                if (shouldShowTablePreview()) {
+                    renderCurrentTablePreview();
+                }
+            }
+            
+            updateResultNavigation();
+        }
+        
+        // 复制当前预览的文本
+        function copyCurrentText() {
+            const session = getSession();
+            const allResults = session.allResults || [];
+            const currentIndex = session.currentResultIndex || 0;
+            
+            // 表格识别模式或自定义图表解析：复制 HTML 表格（可粘贴到 Excel/Word）
+            if (shouldShowTablePreview()) {
+                copyTableAsHtml();
+                return;
+            }
+            
+            // 其他模式：复制原始内容（保留 Markdown 格式）
+            let content = '';
+            if (allResults.length > 0 && allResults[currentIndex]) {
+                // 直接使用原始内容，保留 Markdown 格式
+                const rawContent = allResults[currentIndex].content;
+                // 如果是 custom_coord 模式，保留坐标；否则转换
+                if (shouldPreserveCoordinates()) {
+                    content = rawContent;
+                } else {
+                    // 如果内容包含坐标格式，则转换；否则直接使用原始内容
+                    const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(rawContent);
+                    content = hasCoordinates ? convertToMarkdown(rawContent) : rawContent;
+                }
+            } else {
+                // 优先使用原始结果内容
+                content = session.result?.content || session.markdownContent || '';
+            }
+            
+            if (!content) {
+                showStatus('没有可复制的内容', 'error');
+                return;
+            }
+            
+            navigator.clipboard.writeText(content).then(() => {
+                // 切换图标为勾选状态
+                const copyBtn = document.getElementById('copyTextBtn');
+                const copyIcon = document.getElementById('copyIconSvg');
+                const checkIcon = document.getElementById('copyCheckSvg');
+                
+                copyBtn.classList.add('copied');
+                copyIcon.style.display = 'none';
+                checkIcon.style.display = 'block';
+                
+                showStatus('✅ 已复制到剪贴板', 'success');
+                
+                // 1.5秒后恢复原图标
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyIcon.style.display = 'block';
+                    checkIcon.style.display = 'none';
+                }, 1500);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                showStatus('复制失败，请手动复制', 'error');
+            });
+        }
+        
+        // 复制表格为 HTML 格式（可粘贴到 Excel/Word）
+        function copyTableAsHtml() {
+            const tablePreviewContainer = document.getElementById('tablePreviewContainer');
+            const table = tablePreviewContainer.querySelector('table');
+            
+            if (!table) {
+                showStatus('没有可复制的表格', 'error');
+                return;
+            }
+            
+            // 获取表格的 HTML
+            const tableHtml = table.outerHTML;
+            
+            // 使用 ClipboardItem 同时写入 HTML 和纯文本格式
+            const htmlBlob = new Blob([tableHtml], { type: 'text/html' });
+            const textBlob = new Blob([tableToText(table)], { type: 'text/plain' });
+            
+            navigator.clipboard.write([
+                new ClipboardItem({
+                    'text/html': htmlBlob,
+                    'text/plain': textBlob
+                })
+            ]).then(() => {
+                // 切换图标为勾选状态
+                const copyBtn = document.getElementById('copyTextBtn');
+                const copyIcon = document.getElementById('copyIconSvg');
+                const checkIcon = document.getElementById('copyCheckSvg');
+                
+                copyBtn.classList.add('copied');
+                copyIcon.style.display = 'none';
+                checkIcon.style.display = 'block';
+                
+                showStatus('✅ 表格已复制，可直接粘贴到 Excel/Word', 'success');
+                
+                // 1.5秒后恢复原图标
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyIcon.style.display = 'block';
+                    checkIcon.style.display = 'none';
+                }, 1500);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                // 降级方案：只复制纯文本
+                navigator.clipboard.writeText(tableToText(table)).then(() => {
+                    showStatus('✅ 已复制表格文本', 'success');
+                }).catch(() => {
+                    showStatus('复制失败，请手动复制', 'error');
+                });
+            });
+        }
+        
+        // 将表格转换为 Tab 分隔的纯文本（用于 Excel 粘贴）
+        function tableToText(table) {
+            const rows = table.querySelectorAll('tr');
+            const lines = [];
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const cellTexts = [];
+                cells.forEach(cell => {
+                    // 获取单元格文本，处理换行
+                    let text = cell.innerText.replace(/\n/g, ' ').trim();
+                    cellTexts.push(text);
+                });
+                lines.push(cellTexts.join('\t'));
+            });
+            
+            return lines.join('\n');
         }
         
         // 复制为 Excel 格式（Tab 分隔）
@@ -1118,33 +2031,15 @@
             const previewBtn = document.getElementById('previewTableBtn');
             const previewContainer = document.getElementById('tablePreviewContainer');
             const resultContainer = document.getElementById('resultContainer');
+            const session = getSession();
             
             const isActive = previewBtn.classList.toggle('active');
             
             if (isActive) {
                 previewBtn.textContent = '📝 Markdown';
-                const content = resultContainer.textContent;
                 
-                // 检测是否是带坐标的 OCR 结果
-                const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(content);
-                
-                if (hasCoordinates) {
-                    // 解析坐标数据并渲染为 HTML 表格
-                    const tableData = parseCoordinateOCR(content);
-                    if (tableData && tableData.rows.length > 0) {
-                        previewContainer.innerHTML = renderCoordinateTable(tableData);
-                    } else {
-                        previewContainer.innerHTML = '<p>未检测到表格数据</p>';
-                    }
-                } else {
-                    previewContainer.innerHTML = parseMarkdownTables(content);
-                }
-                
-                // 应用提取的颜色到表头
-                const session = getSession();
-                if (session.headerColor) {
-                    applyHeaderColor(previewContainer, session.headerColor);
-                }
+                // 渲染当前文件的表格预览（通过导航切换）
+                renderCurrentTablePreview();
                 
                 previewContainer.style.display = 'block';
                 resultContainer.style.display = 'none';
@@ -1153,20 +2048,133 @@
                 previewContainer.style.display = 'none';
                 resultContainer.style.display = 'block';
                 
-                // 切换回源码时，显示 Markdown 格式
-                const session = getSession();
-                if (session.result && session.markdownContent) {
-                    resultContainer.textContent = session.markdownContent;
+                // 切换回源码时，显示当前文件的 Markdown 格式
+                const allResults = session.allResults || [];
+                const currentIndex = session.currentResultIndex || 0;
+                if (allResults.length > 0 && allResults[currentIndex]) {
+                    const markdownContent = convertToMarkdown(allResults[currentIndex].content, shouldPreserveCoordinates());
+                    displayResultContent(markdownContent, resultContainer);
+                    session.markdownContent = markdownContent;
+                } else if (session.result && session.markdownContent) {
+                    displayResultContent(session.markdownContent, resultContainer);
                 }
             }
         }
         
-        // 将带坐标的 OCR 结果转换为 Markdown 表格
-        function convertToMarkdown(rawContent) {
+        // 简单的 Markdown 渲染函数（将 Markdown 文本转换为 HTML）
+        function renderMarkdownToHtml(markdown) {
+            if (!markdown) return '';
+            
+            let html = markdown;
+            
+            // 转义 HTML 特殊字符（但保留我们要处理的 Markdown 语法）
+            html = html.replace(/&/g, '&amp;')
+                       .replace(/</g, '&lt;')
+                       .replace(/>/g, '&gt;');
+            
+            // 处理标题 (# ## ### 等)
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            // 处理粗体 **text** 或 __text__
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            
+            // 处理斜体 *text* 或 _text_
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+            
+            // 处理行内代码 `code`
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // 处理水平线 --- 或 ***
+            html = html.replace(/^(-{3,}|\*{3,})$/gm, '<hr>');
+            
+            // 处理有序列表（中文数字格式：一、二、三、等）
+            html = html.replace(/^([一二三四五六七八九十]+)、(.+)$/gm, '<p class="list-item"><strong>$1、</strong>$2</p>');
+            
+            // 处理有序列表（数字格式：1. 2. 等）
+            html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<p class="list-item"><strong>$1.</strong> $2</p>');
+            
+            // 处理无序列表 - 或 *
+            html = html.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+            
+            // 处理引用 >
+            html = html.replace(/^&gt;\s*(.+)$/gm, '<blockquote>$1</blockquote>');
+            
+            // 处理段落（连续的非空行）
+            // 先将连续换行转为段落分隔
+            html = html.replace(/\n\n+/g, '</p><p>');
+            
+            // 处理单个换行（在段落内）
+            html = html.replace(/\n/g, '<br>');
+            
+            // 包装在段落中
+            if (!html.startsWith('<h') && !html.startsWith('<p') && !html.startsWith('<ul') && !html.startsWith('<ol')) {
+                html = '<p>' + html + '</p>';
+            }
+            
+            // 清理多余的空段落
+            html = html.replace(/<p>\s*<\/p>/g, '');
+            html = html.replace(/<p><br><\/p>/g, '');
+            
+            return html;
+        }
+        
+        // 检测内容是否包含 Markdown 格式
+        function hasMarkdownFormat(content) {
+            if (!content) return false;
+            // 检测常见的 Markdown 标记
+            return /^#+ /m.test(content) ||           // 标题
+                   /\*\*.+\*\*/m.test(content) ||     // 粗体
+                   /^[-*]\s+/m.test(content) ||       // 无序列表
+                   /^\d+\.\s+/m.test(content) ||      // 有序列表
+                   /^[一二三四五六七八九十]+、/m.test(content);  // 中文序号
+        }
+        
+        // 显示结果内容（根据模式决定是否渲染 Markdown）
+        function displayResultContent(content, container) {
+            // 只有主模式 markdown 才渲染，自定义模式下的 custom_markdown 显示原始源码
+            const shouldRenderMarkdown = (currentPrompt === 'markdown') && hasMarkdownFormat(content);
+            
+            if (shouldRenderMarkdown) {
+                container.innerHTML = renderMarkdownToHtml(content);
+                container.classList.add('markdown-rendered');
+            } else {
+                container.textContent = content;
+                container.classList.remove('markdown-rendered');
+            }
+        }
+        
+        // 将带坐标的 OCR 结果转换为 Markdown 表格或提取 Markdown 内容
+        // preserveCoordinates: 是否保留原始坐标格式（用于 custom_coord 子模式）
+        function convertToMarkdown(rawContent, preserveCoordinates = false) {
+            // 如果需要保留坐标，直接返回原始内容
+            if (preserveCoordinates) {
+                return rawContent;
+            }
+            
             const hasCoordinates = /\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/.test(rawContent);
             
             if (!hasCoordinates) {
                 return rawContent;
+            }
+            
+            // 检测是否为"文档转 Markdown"格式
+            // 格式特征: 行首是 title[[...]] 或 text[[...]]，后面跟着实际内容
+            // 例如: title[[363, 42, 636, 140]]\n# 标题内容
+            const docMarkdownPattern = /^(title|text)\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/m;
+            if (docMarkdownPattern.test(rawContent)) {
+                return extractDocumentMarkdown(rawContent);
+            }
+            
+            // 检测是否为"图片 OCR (带坐标)"格式
+            // 格式特征: 文字[[坐标]] - 文字在前，坐标在后
+            // 例如: 国务院办公厅关于2026年[[368, 49, 633, 83]]
+            const coordOcrPattern = /^[^\[\]]+\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/m;
+            if (coordOcrPattern.test(rawContent)) {
+                return extractCoordOcrText(rawContent);
             }
             
             const tableData = parseCoordinateOCR(rawContent);
@@ -1191,16 +2199,59 @@
             return markdown;
         }
         
-        // 应用表头颜色
+        // 从"文档转 Markdown"格式中提取纯 Markdown 内容
+        // 输入格式: title[[x,y,x,y]]\n# 标题\ntext[[x,y,x,y]]\n正文
+        function extractDocumentMarkdown(rawContent) {
+            const lines = rawContent.split('\n');
+            const markdownLines = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                // 移除行首的类型标签（title[[...]] 或 text[[...]]）
+                line = line.replace(/^(title|text)\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]\s*/, '');
+                // 去除尾部空格
+                line = line.replace(/\s+$/, '');
+                // 只保留非空行
+                if (line) {
+                    markdownLines.push(line);
+                }
+            }
+            
+            return markdownLines.join('\n').trim();
+        }
+        
+        // 从"图片 OCR (带坐标)"格式中提取纯文本
+        // 输入格式: 文字[[x,y,x,y]]
+        function extractCoordOcrText(rawContent) {
+            const lines = rawContent.split('\n');
+            const textLines = [];
+            
+            for (const line of lines) {
+                // 移除坐标部分，只保留文字
+                // 格式: 文字[[x,y,x,y]] -> 文字
+                const text = line.replace(/\[\[\d+,\s*\d+,\s*\d+,\s*\d+\]\]/g, '').trim();
+                if (text) {
+                    textLines.push(text);
+                }
+            }
+            
+            return textLines.join('\n');
+        }
+        
+        // 应用表头颜色（跳过 sit-table）
         function applyHeaderColor(container, color) {
             const headers = container.querySelectorAll('th');
             headers.forEach(th => {
+                // 跳过 sit-table 中的表头，保持其白色背景
+                if (th.closest('.sit-table')) {
+                    return;
+                }
                 th.style.background = color;
                 th.style.borderColor = color;
             });
         }
         
-        // 解析带坐标的 OCR 结果，重建表格结构（改进版）
+        // 解析带坐标的 OCR 结果，重建表格结构（v9 - 智能表单识别）
         function parseCoordinateOCR(text) {
             const lines = text.split('\n').filter(l => l.trim());
             const items = [];
@@ -1226,72 +2277,200 @@
             
             if (items.length === 0) return null;
             
-            // 计算动态 tolerance 基于平均高度
-            const avgHeight = items.reduce((s, i) => s + i.height, 0) / items.length;
-            const rowTolerance = avgHeight * 0.8;
-            const colTolerance = avgHeight * 1.5;
+            // 1. 按 Y 坐标分组成行
+            items.sort((a, b) => a.y1 - b.y1);
             
-            // 1. 分析列结构：基于 X 左边界聚类（更准确）
-            const xLefts = [...new Set(items.map(i => i.x1))].sort((a, b) => a - b);
-            const columns = clusterPositions(xLefts, colTolerance);
+            const heights = items.map(i => i.height).sort((a, b) => a - b);
+            const medianHeight = heights[Math.floor(heights.length / 2)] || 30;
+            const rowTolerance = medianHeight * 0.8;
             
-            // 2. 分析行结构：基于 Y 上边界聚类
-            const yTops = [...new Set(items.map(i => i.y1))].sort((a, b) => a - b);
-            const rows = clusterPositions(yTops, rowTolerance);
+            const rowGroups = [];
+            let currentRow = [items[0]];
             
-            // 3. 将每个 item 分配到网格，同一单元格的文本合并
-            const grid = [];
-            for (let r = 0; r < rows.length; r++) {
-                grid[r] = new Array(columns.length).fill(null).map(() => ({ texts: [], rowspan: 1, colspan: 1 }));
-            }
-            
-            // 按 Y 坐标排序，确保同一单元格内的文本按顺序合并
-            const sortedItems = [...items].sort((a, b) => a.y1 - b.y1 || a.x1 - b.x1);
-            
-            for (const item of sortedItems) {
-                const rowIdx = findNearestIndex(rows, item.y1, rowTolerance * 1.5);
-                const colIdx = findNearestIndex(columns, item.x1, colTolerance * 1.5);
+            for (let i = 1; i < items.length; i++) {
+                const item = items[i];
+                const sameRow = currentRow.some(r => Math.abs(item.cy - r.cy) <= rowTolerance);
                 
-                if (rowIdx !== -1 && colIdx !== -1) {
-                    grid[rowIdx][colIdx].texts.push(item.text);
+                if (sameRow) {
+                    currentRow.push(item);
+                } else {
+                    currentRow.sort((a, b) => a.x1 - b.x1);
+                    rowGroups.push(currentRow);
+                    currentRow = [item];
                 }
             }
+            currentRow.sort((a, b) => a.x1 - b.x1);
+            rowGroups.push(currentRow);
             
-            // 4. 合并文本并清理空行
-            const finalGrid = [];
-            for (let r = 0; r < grid.length; r++) {
-                const row = grid[r].map(cell => ({
-                    text: cell.texts.join(' '),
-                    rowspan: 1,
-                    colspan: 1
-                }));
-                // 只保留有内容的行
-                if (row.some(cell => cell.text.trim())) {
-                    finalGrid.push(row);
-                }
-            }
+            // 2. 分析表格类型
+            const rowLengths = rowGroups.map(r => r.length);
+            const avgRowLength = rowLengths.reduce((a, b) => a + b, 0) / rowLengths.length;
+            const rowLengthVariance = rowLengths.reduce((sum, len) => sum + Math.pow(len - avgRowLength, 2), 0) / rowLengths.length;
+            const isFormType = rowLengthVariance > 4 || avgRowLength < 5;
             
-            // 5. 检测并处理 rowspan（垂直合并单元格）
-            for (let c = 0; c < columns.length; c++) {
-                for (let r = 0; r < finalGrid.length - 1; r++) {
-                    const cell = finalGrid[r][c];
-                    if (!cell.text) continue;
-                    
-                    // 检查下方连续空单元格
-                    let span = 1;
-                    for (let r2 = r + 1; r2 < finalGrid.length; r2++) {
-                        if (!finalGrid[r2][c].text && !finalGrid[r2][c].skip) {
-                            span++;
-                            finalGrid[r2][c].skip = true;
-                        } else {
-                            break;
-                        }
+            // 3. 智能列边界检测
+            const colBoundaries = detectSmartColumns(items, rowGroups, isFormType);
+            const numCols = colBoundaries.length - 1;
+            
+            if (numCols < 2) return null;
+            
+            // 4. 检测表头行数（表单型通常没有表头）
+            let headerRowCount = isFormType ? 0 : 1;
+            if (!isFormType) {
+                for (let i = 0; i < Math.min(3, rowGroups.length); i++) {
+                    const row = rowGroups[i];
+                    const numericCount = row.filter(item => /^[\d,.\-]+$/.test(item.text)).length;
+                    if (numericCount / row.length < 0.5) {
+                        headerRowCount = i + 1;
+                    } else {
+                        break;
                     }
-                    if (span > 1) cell.rowspan = span;
                 }
             }
             
-            return { rows: finalGrid, colCount: columns.length };
+            // 5. 构建表格网格
+            const allRows = [];
+            
+            for (let rowIdx = 0; rowIdx < rowGroups.length; rowIdx++) {
+                const row = rowGroups[rowIdx];
+                const isHeader = rowIdx < headerRowCount;
+                const gridRow = Array(numCols).fill(null).map(() => ({ 
+                    text: '', rowspan: 1, colspan: 1, skip: false, isHeader: isHeader
+                }));
+                
+                for (const item of row) {
+                    // 找到元素所属的列
+                    let startCol = findColumnForX(item.x1, colBoundaries);
+                    let endCol = findColumnForX(item.x2 - 1, colBoundaries);
+                    
+                    if (startCol === -1) startCol = 0;
+                    if (endCol === -1) endCol = numCols - 1;
+                    if (endCol < startCol) endCol = startCol;
+                    
+                    const colspan = endCol - startCol + 1;
+                    
+                    const cell = gridRow[startCol];
+                    if (!cell.text) {
+                        cell.text = item.text;
+                        cell.colspan = colspan;
+                        for (let c = startCol + 1; c <= endCol && c < numCols; c++) {
+                            gridRow[c].skip = true;
+                        }
+                    } else {
+                        cell.text += ' ' + item.text;
+                    }
+                }
+                
+                if (gridRow.some(cell => cell.text)) {
+                    allRows.push(gridRow);
+                }
+            }
+            
+            return { 
+                rows: allRows, 
+                colCount: numCols, 
+                headerRows: headerRowCount,
+                isFormType: isFormType
+            };
+        }
+        
+        // 找到 X 坐标所属的列索引
+        function findColumnForX(x, boundaries) {
+            for (let i = 0; i < boundaries.length - 1; i++) {
+                if (x >= boundaries[i] && x < boundaries[i + 1]) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        // 智能列边界检测
+        function detectSmartColumns(items, rowGroups, isFormType) {
+            const allX1 = items.map(i => i.x1);
+            const allX2 = items.map(i => i.x2);
+            const minX = Math.min(...allX1);
+            const maxX = Math.max(...allX2);
+            
+            // 收集所有左边界位置及其频率
+            const x1Freq = new Map();
+            for (const item of items) {
+                const rounded = Math.round(item.x1 / 15) * 15;
+                x1Freq.set(rounded, (x1Freq.get(rounded) || 0) + 1);
+            }
+            
+            // 按频率排序，取出现次数 >= 2 的位置
+            let candidates = [...x1Freq.entries()]
+                .filter(([x, count]) => count >= 2)
+                .sort((a, b) => a[0] - b[0])
+                .map(([x]) => x);
+            
+            // 合并相近的边界（间距 < 60 的合并）
+            const merged = [minX - 5];
+            for (const x of candidates) {
+                const last = merged[merged.length - 1];
+                if (x - last >= 60) {
+                    merged.push(x);
+                }
+            }
+            merged.push(maxX + 20);
+            
+            // 如果列数太少，尝试按表格宽度均分
+            if (merged.length < 4) {
+                const width = maxX - minX;
+                const numCols = isFormType ? 4 : 6;
+                const colWidth = width / numCols;
+                const evenBoundaries = [minX - 5];
+                for (let i = 1; i < numCols; i++) {
+                    evenBoundaries.push(minX + colWidth * i);
+                }
+                evenBoundaries.push(maxX + 20);
+                return evenBoundaries;
+            }
+            
+            return merged;
+        }
+        
+        // 聚类 X 坐标，找到列边界
+        function clusterXPositions(positions, tolerance) {
+            if (positions.length === 0) return [0, 1000];
+            
+            const clusters = [];
+            let currentCluster = [positions[0]];
+            
+            for (let i = 1; i < positions.length; i++) {
+                if (positions[i] - positions[i-1] <= tolerance) {
+                    currentCluster.push(positions[i]);
+                } else {
+                    // 取聚类的中间值作为边界
+                    clusters.push(currentCluster[0]);
+                    currentCluster = [positions[i]];
+                }
+            }
+            clusters.push(currentCluster[0]);
+            
+            // 添加最后一个边界
+            clusters.push(positions[positions.length - 1] + 50);
+            
+            return clusters;
+        }
+        
+        // 找到坐标对应的边界索引
+        function findBoundaryIndex(boundaries, value, tolerance) {
+            for (let i = 0; i < boundaries.length; i++) {
+                if (Math.abs(boundaries[i] - value) <= tolerance) {
+                    return i;
+                }
+            }
+            // 如果没找到精确匹配，找最近的
+            let minDist = Infinity, minIdx = 0;
+            for (let i = 0; i < boundaries.length; i++) {
+                const dist = Math.abs(boundaries[i] - value);
+                if (dist < minDist) {
+                    minDist = dist;
+                    minIdx = i;
+                }
+            }
+            return minIdx;
         }
         
         // 位置聚类：将相近的坐标归为一组
@@ -1381,33 +2560,123 @@
             return html || '<p style="color:var(--gray-600);">未检测到可预览的内容</p>';
         }
         
-        // 渲染基于坐标重建的表格（支持 rowspan）
+        // 渲染基于坐标重建的表格（v9 - 智能表单渲染）
         function renderCoordinateTable(tableData) {
             if (!tableData || tableData.rows.length === 0) return '';
             
             const colCount = tableData.colCount || tableData.rows[0].length;
+            const headerRows = tableData.headerRows || 0;
+            const isFormType = tableData.isFormType || false;
             
-            let html = '<div class="table-wrapper"><table class="coordinate-table">';
+            // 根据表格类型选择样式
+            const tableClass = isFormType ? 'form-table' : 'coordinate-table';
+            let html = `<div class="table-wrapper"><table class="${tableClass}">`;
             
-            tableData.rows.forEach((row, rowIdx) => {
-                const isHeader = rowIdx <= 3; // 前几行可能是表头
-                const tag = isHeader ? 'th' : 'td';
-                html += '<tr>';
-                
-                row.forEach(cell => {
-                    if (cell.skip) return;
+            // 对于表单类型，智能识别标签和值
+            if (isFormType) {
+                html += '<tbody>';
+                for (let rowIdx = 0; rowIdx < tableData.rows.length; rowIdx++) {
+                    const row = tableData.rows[rowIdx];
+                    html += '<tr>';
                     
-                    const rowspanAttr = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : '';
-                    const colspanAttr = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
-                    const cellClass = (cell.rowspan > 1 && !isHeader) ? ' class="rowspan-cell"' : '';
-                    html += `<${tag}${rowspanAttr}${colspanAttr}${cellClass}>${escapeHtml(cell.text || '')}</${tag}>`;
-                });
+                    row.forEach((cell, colIdx) => {
+                        if (cell.skip) return;
+                        
+                        const colspanAttr = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
+                        const cellText = escapeHtml(cell.text || '').replace(/\n/g, '<br>');
+                        
+                        // 智能检测是否是标签单元格
+                        const text = cell.text || '';
+                        const isLabel = isFormLabel(text);
+                        
+                        const cellClass = isLabel ? 'form-label' : 'form-value';
+                        html += `<td class="${cellClass}"${colspanAttr}>${cellText}</td>`;
+                    });
+                    
+                    html += '</tr>';
+                }
+                html += '</tbody>';
+            } else {
+                // 数据表类型：保持原有逻辑
+                if (headerRows > 0) {
+                    html += '<thead>';
+                    for (let rowIdx = 0; rowIdx < headerRows && rowIdx < tableData.rows.length; rowIdx++) {
+                        const row = tableData.rows[rowIdx];
+                        html += '<tr>';
+                        
+                        row.forEach((cell, colIdx) => {
+                            if (cell.skip) return;
+                            
+                            const rowspanAttr = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : '';
+                            const colspanAttr = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
+                            
+                            html += `<th${rowspanAttr}${colspanAttr}>${escapeHtml(cell.text || '')}</th>`;
+                        });
+                        
+                        html += '</tr>';
+                    }
+                    html += '</thead>';
+                }
                 
-                html += '</tr>';
-            });
+                html += '<tbody>';
+                const startRow = headerRows > 0 ? headerRows : 0;
+                for (let rowIdx = startRow; rowIdx < tableData.rows.length; rowIdx++) {
+                    const row = tableData.rows[rowIdx];
+                    html += '<tr>';
+                    
+                    row.forEach((cell, colIdx) => {
+                        if (cell.skip) return;
+                        
+                        const rowspanAttr = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : '';
+                        const colspanAttr = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
+                        
+                        let cellClasses = [];
+                        if (/^[\d,.\-]+$/.test((cell.text || '').trim())) {
+                            cellClasses.push('numeric');
+                        }
+                        
+                        const classAttr = cellClasses.length > 0 ? ` class="${cellClasses.join(' ')}"` : '';
+                        const cellText = escapeHtml(cell.text || '').replace(/\n/g, '<br>');
+                        
+                        html += `<td${rowspanAttr}${colspanAttr}${classAttr}>${cellText}</td>`;
+                    });
+                    
+                    html += '</tr>';
+                }
+                html += '</tbody>';
+            }
             
             html += '</table></div>';
             return html;
+        }
+        
+        // 判断文本是否是表单标签
+        function isFormLabel(text) {
+            if (!text) return false;
+            
+            // 以冒号结尾
+            if (/[:：]$/.test(text)) return true;
+            
+            // 常见表单标签关键词
+            const labelKeywords = [
+                '姓名', '性别', '年龄', '学历', '专业', '电话', '地址', '日期', '时间',
+                '备注', '说明', '籍贯', '民族', '身份', '职务', '职业', '工作', '单位',
+                '住址', '邮编', '邮箱', '证号', '编号', '状况', '状态', '关系', '方式',
+                '评价', '优势', '劣势', '经历', '教育', '家庭', '成员', '联系', '紧急',
+                '期望', '薪资', '岗位', '部门', '原因', '证书', '奖励', '填表', '应聘'
+            ];
+            
+            for (const keyword of labelKeywords) {
+                if (text.includes(keyword)) return true;
+            }
+            
+            // 短文本（少于6个字符）且不是纯数字
+            if (text.length <= 6 && !/^[\d\.\-\/]+$/.test(text)) return true;
+            
+            // 包含"口"（复选框）的选项
+            if (/^口/.test(text)) return true;
+            
+            return false;
         }
         
         function parseSection(text) {
@@ -1462,7 +2731,8 @@
             }
             
             // 如果没有 Markdown 表格，尝试智能解析整个内容为表格
-            if (!html.includes('<table>') && lines.length >= 2) {
+            // 注意：检查 '<table' 而不是 '<table>'，因为表格可能有 class 属性
+            if (!html.includes('<table') && lines.length >= 2) {
                 const smartResult = smartParseTable(lines);
                 if (smartResult) {
                     return smartResult;
@@ -1641,12 +2911,195 @@
             // 确定列数（取最大列数）
             const colCount = Math.max(...parsedRows.map(r => r.length));
             
+            // 检测是否是 SIT 性能测试表（通过关键词检测）
+            const isSITTable = parsedRows.some(row => 
+                row.some(cell => /性能指标|并发|响应时间|吞吐率|TPS/.test(cell))
+            );
+            
+            // DEBUG: 输出检测结果
+            console.log('[SIT Table Detection]', {
+                isSITTable,
+                colCount,
+                parsedRowsCount: parsedRows.length,
+                firstRow: parsedRows[0],
+                allCells: parsedRows.flat().slice(0, 20)
+            });
+            
+            if (isSITTable && colCount >= 7) {
+                console.log('[SIT Table] Calling renderSITPerformanceTable');
+                return renderSITPerformanceTable(parsedRows, colCount);
+            }
+            
+            // 普通表格渲染
             let html = '<div class="table-wrapper"><table>';
             parsedRows.forEach((cells, idx) => {
                 const isHeader = hasHeader && idx === 0;
                 const tag = isHeader ? 'th' : 'td';
                 html += '<tr>';
-                // 确保每行都有相同的列数
+                for (let i = 0; i < colCount; i++) {
+                    const cell = cells[i] || '';
+                    html += `<${tag}>${escapeHtml(cell)}</${tag}>`;
+                }
+                html += '</tr>';
+            });
+            html += '</table></div>';
+            return html;
+        }
+        
+        // 专门渲染 SIT 性能测试表 (v2 - 基于固定列位置)
+        function renderSITPerformanceTable(parsedRows, colCount) {
+            console.log('[renderSITPerformanceTable] Input:', { parsedRows, colCount });
+            
+            // 找到第一个数据行（包含"并发"关键词且有多个数字的行）
+            // 放宽匹配：支持 "1并发", "5并发 20并发", "100并发 1并发" 等格式
+            let firstDataRowIdx = -1;
+            for (let i = 0; i < parsedRows.length; i++) {
+                const row = parsedRows[i];
+                // 匹配包含"X并发"的单元格（可能有多个值用空格分隔）
+                const hasConcurrency = row.some(cell => /\d+并发/.test(cell));
+                const numericCount = row.filter(cell => /^\d+(\.\d+)?$/.test(cell.trim())).length;
+                console.log(`[renderSITPerformanceTable] Row ${i}:`, { 
+                    row, 
+                    hasConcurrency, 
+                    numericCount,
+                    cells: row.map(c => ({ cell: c, matchConcurrency: /\d+并发/.test(c) }))
+                });
+                // 放宽条件：只要有并发关键词且有至少3个数值
+                if (hasConcurrency && numericCount >= 3) {
+                    firstDataRowIdx = i;
+                    break;
+                }
+            }
+            
+            console.log('[renderSITPerformanceTable] firstDataRowIdx:', firstDataRowIdx);
+            
+            if (firstDataRowIdx === -1) {
+                // 没找到数据行，返回普通表格
+                return renderPlainTable(parsedRows, colCount);
+            }
+            
+            // 构建固定的表头
+            let html = '<div class="table-wrapper"><table class="sit-table">';
+            
+            // 表头第一行
+            html += '<thead>';
+            html += '<tr class="header-row-1">';
+            html += '<th rowspan="2" class="header-cell col-concurrency">并发数</th>';
+            html += '<th rowspan="2" class="header-cell col-version">版本</th>';
+            html += '<th rowspan="2" class="header-cell col-service">服务接口</th>';
+            html += '<th colspan="7" class="header-cell colspan-header">性能指标</th>';
+            html += '</tr>';
+            
+            // 表头第二行
+            html += '<tr class="header-row-2">';
+            html += '<th class="header-cell col-numeric">请求总数</th>';
+            html += '<th class="header-cell col-numeric">平均响应<br>时间(ms)</th>';
+            html += '<th class="header-cell col-numeric">90%响应<br>时间(ms)</th>';
+            html += '<th class="header-cell col-numeric">95%响应<br>时间(ms)</th>';
+            html += '<th class="header-cell col-numeric">99%响应<br>时间(ms)</th>';
+            html += '<th class="header-cell col-numeric">吞吐率<br>TPS</th>';
+            html += '<th class="header-cell col-numeric">流量<br>KB/S</th>';
+            html += '</tr>';
+            html += '</thead>';
+            
+            // 收集数据行并处理服务接口的 rowspan
+            const dataRows = [];
+            let currentService = '';
+            
+            for (let i = firstDataRowIdx; i < parsedRows.length; i++) {
+                const row = parsedRows[i];
+                // 跳过空行或表头行
+                if (row.every(cell => !cell)) continue;
+                if (row.some(cell => /性能指标|SIT测试|响应时间\(ms\)|吞吐率TPS/.test(cell))) continue;
+                
+                // 智能检测列位置
+                // 并发数: 包含"并发"关键词
+                // 版本: 格式为 V + 数字 (如 V2.5)
+                // 服务接口: 中文文本（非数字、非版本号）
+                // 数值列: 纯数字
+                
+                let concurrency = '';
+                let version = '';
+                let service = '';
+                const dataValues = [];
+                
+                // 遍历所有单元格，智能分类
+                for (let j = 0; j < row.length; j++) {
+                    const cell = (row[j] || '').trim();
+                    if (!cell) continue;
+                    
+                    // 检测并发数（包含"并发"关键词）
+                    if (/\d+并发/.test(cell) && !concurrency) {
+                        concurrency = cell;
+                    }
+                    // 检测版本号（V + 数字格式）
+                    else if (/^V\d+(\.\d+)?$/i.test(cell) && !version) {
+                        version = cell;
+                    }
+                    // 检测纯数字（数值列）
+                    else if (/^[\d,.]+$/.test(cell)) {
+                        dataValues.push(cell);
+                    }
+                    // 检测中文文本（服务接口）
+                    else if (/[\u4e00-\u9fa5]/.test(cell) && !/并发/.test(cell)) {
+                        if (!service) {
+                            service = cell;
+                        } else {
+                            // 多行服务接口名称合并
+                            service += ' ' + cell;
+                        }
+                    }
+                }
+                
+                // 如果服务接口为空，使用上一个服务接口
+                if (!service && currentService) {
+                    service = '';  // 标记为需要合并
+                } else if (service) {
+                    currentService = service;
+                }
+                
+                // 只保留有效数据行（至少有并发数或数值）
+                if (concurrency || dataValues.length >= 3) {
+                    dataRows.push({
+                        concurrency,
+                        version,
+                        service,
+                        dataValues
+                    });
+                }
+            }
+            
+            // 渲染数据行
+            html += '<tbody>';
+            for (let i = 0; i < dataRows.length; i++) {
+                const { concurrency, version, service, dataValues } = dataRows[i];
+                
+                html += '<tr>';
+                html += `<td class="col-concurrency">${escapeHtml(concurrency)}</td>`;
+                html += `<td class="col-version">${escapeHtml(version)}</td>`;
+                html += `<td class="col-service">${escapeHtml(service)}</td>`;
+                
+                // 数值列（确保有7个）
+                for (let j = 0; j < 7; j++) {
+                    const val = dataValues[j] || '';
+                    html += `<td class="col-numeric">${escapeHtml(val)}</td>`;
+                }
+                
+                html += '</tr>';
+            }
+            html += '</tbody>';
+            html += '</table></div>';
+            
+            return html;
+        }
+        
+        // 普通表格渲染（不做特殊处理）
+        function renderPlainTable(parsedRows, colCount) {
+            let html = '<div class="table-wrapper"><table>';
+            parsedRows.forEach((cells, idx) => {
+                const isHeader = idx === 0;
+                const tag = isHeader ? 'th' : 'td';
+                html += '<tr>';
                 for (let i = 0; i < colCount; i++) {
                     const cell = cells[i] || '';
                     html += `<${tag}>${escapeHtml(cell)}</${tag}>`;
@@ -1675,6 +3128,7 @@
         
         function getPrompt() {
             if (currentPrompt === 'custom') {
+                // 自定义模式：始终使用文本框内容（用户可能修改了）
                 return document.getElementById('customPrompt').value || PROMPTS.free;
             }
             return PROMPTS[currentPrompt];
@@ -1690,46 +3144,40 @@
                 if (status === 'pending') pendingIndexes.push(i);
             });
             
+            // 如果全部完成，点击按钮重新识别所有文件
             if (pendingIndexes.length === 0) {
-                showStatus('所有文件已处理完成', 'success');
-                return;
+                // 重置所有文件状态为 pending
+                session.fileStatuses = session.files.map(() => 'pending');
+                session.allResults = [];
+                session.result = null;
+                session.currentResultIndex = 0;
+                pendingIndexes.push(...session.files.map((_, i) => i));
             }
             
             startBtn.disabled = true;
             session.status = 'processing';
-            document.getElementById('progressCard').style.display = 'block';
-            
-            // 显示批量统计
-            if (session.files.length > 1) {
-                document.getElementById('batchStats').style.display = 'flex';
-                const completed = session.fileStatuses.filter(s => s === 'completed').length;
-                document.getElementById('batchStats').innerHTML = `
-                    <div class="stat-item"><div class="stat-value" id="statTotal">${session.files.length}</div><div class="stat-label">总文件</div></div>
-                    <div class="stat-item"><div class="stat-value" id="statCompleted">${completed}</div><div class="stat-label">已完成</div></div>
-                    <div class="stat-item"><div class="stat-value" id="statProcessing">${pendingIndexes.length}</div><div class="stat-label">待处理</div></div>
-                `;
-            }
+            updateUI();
             
             await processIncremental(pendingIndexes);
         });
         
         async function processIncremental(pendingIndexes) {
             const session = getSession();
-            const targetMode = currentPrompt;
+            const targetMode = getCurrentModeKey(); // 使用实际的模式键（自定义模式时返回子模式键）
             const totalFiles = session.files.length;
             let newResults = [];
             
             // 重置进度条
             updateProgress(0);
             
-            showStatus('开始处理...', 'success');
+            // 状态信息已整合到按钮中，不再单独显示
             
             for (let i = 0; i < pendingIndexes.length; i++) {
                 const fileIndex = pendingIndexes[i];
                 const file = session.files[fileIndex];
                 
                 session.fileStatuses[fileIndex] = 'processing';
-                if (currentPrompt === targetMode) updateUI();
+                if (getCurrentModeKey() === targetMode) updateUI();
                 
                 try {
                     // 上传文件
@@ -1782,13 +3230,8 @@
                     console.error(`文件 ${file.name} 处理失败:`, e);
                 }
                 
-                if (currentPrompt === targetMode) {
+                if (getCurrentModeKey() === targetMode) {
                     updateUI();
-                    const completed = session.fileStatuses.filter(s => s === 'completed').length;
-                    if (document.getElementById('statCompleted')) {
-                        document.getElementById('statCompleted').textContent = completed;
-                        document.getElementById('statProcessing').textContent = session.fileStatuses.filter(s => s === 'pending' || s === 'processing').length;
-                    }
                 }
             }
             
@@ -1803,8 +3246,11 @@
                 latestContent = newResults[newResults.length - 1].content;
             }
             
+            // 判断是否需要保留坐标（custom_coord 子模式）
+            const preserveCoords = targetMode === 'custom_coord';
+            
             // 将带坐标的结果转换为 Markdown 格式（用于预览和复制）
-            const markdownContent = convertToMarkdown(latestContent);
+            const markdownContent = convertToMarkdown(latestContent, preserveCoords);
             
             // 生成时间戳：2512222350 格式
             const getTimestamp = () => {
@@ -1831,14 +3277,14 @@
                 // 添加每个文件的单独结果
                 allResults.forEach((r, idx) => {
                     const baseName = r.filename.replace(/\.[^.]+$/, '');
-                    const content = convertToMarkdown(r.content);
+                    const content = convertToMarkdown(r.content, preserveCoords);
                     zip.file(`${baseName}.md`, content);
                 });
                 
                 // 添加合并结果
                 if (allResults.length > 1) {
                     const mergedContent = allResults.map(r => 
-                        `📄 ${r.filename}\n\n${convertToMarkdown(r.content)}`
+                        `📄 ${r.filename}\n\n${convertToMarkdown(r.content, preserveCoords)}`
                     ).join('\n\n---\n\n');
                     zip.file('merged.md', mergedContent);
                 }
@@ -1858,16 +3304,19 @@
             modeSessions[targetMode].markdownContent = markdownContent;
             modeSessions[targetMode].status = 'completed';
             modeSessions[targetMode].progress = 100;
+            // 初始化结果导航索引为最后一个（最新的）
+            modeSessions[targetMode].currentResultIndex = modeSessions[targetMode].allResults.length - 1;
             updateModeIndicators();
             
-            if (currentPrompt === targetMode) {
+            if (getCurrentModeKey() === targetMode) {
                 updateProgress(100);
+                updateUI();  // 更新按钮状态为"识别完成"
                 document.getElementById('resultCard').style.display = 'block';
-                // 默认显示最新文件的 Markdown 格式
-                document.getElementById('resultContainer').textContent = markdownContent;
+                // 默认显示最新文件的 Markdown 格式（根据模式决定是否渲染）
+                const resultContainer = document.getElementById('resultContainer');
+                displayResultContent(markdownContent, resultContainer);
                 showResultButtons(downloadFn);
-                showStatus('✅ 识别完成', 'success');
-                startBtn.disabled = false;
+                // 状态信息已整合到按钮中，不再单独显示
             }
         }
         
@@ -1878,7 +3327,7 @@
                         const res = await fetch(`${API_BASE}/api/result/${taskId}`);
                         const data = await res.json();
                         
-                        if (data.progress && currentPrompt === targetMode) {
+                        if (data.progress && getCurrentModeKey() === targetMode) {
                             const baseProgress = (currentIndex / totalPending) * 100;
                             const fileProgress = (data.progress / 100) * (100 / totalPending);
                             updateProgress(Math.round(baseProgress + fileProgress));

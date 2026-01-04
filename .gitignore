@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and temp files
+*.log
+web-ui/backend/logs/
+web-ui/backend/results/
+web-ui/backend/uploads/
+
+# Workspace temp files
+workspace/*.png
+workspace/*.jpg
+workspace/*.jpeg
+workspace/*.pdf
+
+# Test files (keep only specific ones)
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hypothesis
+.hypothesis/
+
+# Pytest
+.pytest_cache/
+
+# Kiro specs (local development)
+.kiro/specs/
+
+# Models (too large for git)
+models/
