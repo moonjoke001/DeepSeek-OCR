@@ -1,16 +1,14 @@
-version: '3.8'
-
 services:
   # DeepSeek OCR vLLM 服务 (H100 生产环境)
   deepseek-ocr:
-    image: deepseek-ocr:h100
+    image: deepseek-ocr-vllm:latest
     container_name: deepseek-ocr
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['3']
+              device_ids: ['3']  # H100 使用第 4 块 GPU
               capabilities: [gpu]
     environment:
       - NVIDIA_VISIBLE_DEVICES=3
@@ -38,6 +36,8 @@ services:
       - --allowed-local-media-path
       - /workspace
       - --trust-remote-code
+    ports:
+      - "8000:8000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -50,7 +50,7 @@ services:
 
   # Web UI 服务
   deepseek-web:
-    image: deepseek-ocr-deepseek-web:latest
+    image: deepseek-ocr-webui:latest
     container_name: deepseek-web
     ports:
       - "8002:8002"
@@ -59,6 +59,8 @@ services:
       - ./web-ui/backend/uploads:/app/uploads
       - ./web-ui/backend/results:/app/results
       - ./web-ui/backend/logs:/app/logs
+      - ./web-ui/frontend:/app/static
+      - ./web-ui/backend/main.py:/app/main.py
     environment:
       - VLLM_API_URL=http://deepseek-ocr:8000/v1/chat/completions
       - WORKSPACE_DIR=/workspace

@@ -1,0 +1,73 @@
+
+        /* SIT 性能测试表样式 */
+        .table-preview-container .sit-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 13px;
+        }
+        
+        .table-preview-container .sit-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .table-preview-container .sit-table .header-row-1 th,
+        .table-preview-container .sit-table .header-row-2 th {
+            background: #0d7c66;
+            color: white;
+            font-weight: 600;
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid #0a6b58;
+            font-size: 12px;
+        }
+        
+        .table-preview-container .sit-table .colspan-header {
+            background: #0a6b58;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+        
+        .table-preview-container .sit-table tbody td {
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        
+        .table-preview-container .sit-table .col-concurrency {
+            font-weight: 600;
+            color: #0369a1;
+            text-align: center;
+            background: #f0f9ff;
+            white-space: nowrap;
+        }
+        
+        .table-preview-container .sit-table .col-version {
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        .table-preview-container .sit-table .col-service {
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        
+        .table-preview-container .sit-table .col-numeric {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            white-space: nowrap;
+        }
+        
+        .table-preview-container .sit-table tbody tr:nth-child(odd) {
+            background: #ffffff;
+        }
+        
+        .table-preview-container .sit-table tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        
+        .table-preview-container .sit-table tbody tr:hover {
+            background: #e0f2fe;
+        }
+
