@@ -37,8 +37,8 @@ jobs:
           file: ./Dockerfile.webui
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-webui:latest
-            ${{ env.REGISTRY }}/${{ github.repository }}-webui:${{ github.sha }}
+            ghcr.io/moonjoke001/deepseek-ocr-webui:latest
+            ghcr.io/moonjoke001/deepseek-ocr-webui:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -49,7 +49,7 @@ jobs:
           file: ./Dockerfile.vllm
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-backend:latest
-            ${{ env.REGISTRY }}/${{ github.repository }}-backend:${{ github.sha }}
+            ghcr.io/moonjoke001/deepseek-ocr-backend:latest
+            ghcr.io/moonjoke001/deepseek-ocr-backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
